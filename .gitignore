@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+*.pbxproj
+
+# Build output
+*.app
+*.zip
+*.dmg
+*.pkg
+
+# Secrets & config with credentials
+website/config.php
+
+# Logs
+*.log
+
+# Editor
+.vscode/
+.idea/
