@@ -37,7 +37,7 @@ enum UpdateCheckError: LocalizedError {
 class UpdateChecker: ObservableObject {
     static let shared = UpdateChecker()
 
-    private let defaultUpdateDestination = URL(string: "https://app.lemonsqueezy.com/my-orders")!
+    private let defaultUpdateDestination = URL(string: "https://word-flow.store/update")!
     
     // Primary endpoint plus fallbacks under the same domain.
     private let updateManifestURLs: [URL] = [
@@ -160,7 +160,7 @@ class UpdateChecker: ObservableObject {
         alert.messageText = "Neue Version verfügbar: \(info.version)"
         alert.informativeText = info.releaseNotes ?? "Eine neue Version von Wordflow steht zum Download bereit."
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Bei Lemon Squeezy öffnen")
+        alert.addButton(withTitle: "Update herunterladen")
         alert.addButton(withTitle: "Später")
         
         let response = alert.runModal()

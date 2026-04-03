@@ -1,15 +1,12 @@
+<?php require_once __DIR__ . "/security.php"; ?>
 <!DOCTYPE html>
 <html class="light" lang="en">
 
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>About — Wordflow</title>
-  <link href="https://fonts.googleapis.com" rel="preconnect" />
-  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <title>About — Wordflow</title>  <link rel="stylesheet" href="/assets/fonts.css" />
+  <script src="/assets/tailwind.js"></script>
   <script id="tailwind-config">
     tailwind.config = {
       darkMode: "class",
@@ -101,20 +98,7 @@
   <div id="scroll-progress" aria-hidden="true"></div>
 
   <!-- Nav -->
-  <nav class="fixed top-0 w-full z-50 glass-nav border-b border-outline/30" role="navigation" aria-label="Main navigation">
-    <div class="flex justify-between items-center h-20 px-8 max-w-7xl mx-auto">
-      <a href="/" class="font-headline text-3xl font-bold text-on-surface tracking-tight">Wordflow</a>
-      <div class="hidden md:flex items-center space-x-10">
-        <a class="font-headline text-base tracking-tight text-on-surface-variant hover:text-on-surface transition-colors" href="index.html#features">Features</a>
-        <a class="font-headline text-base tracking-tight text-on-surface-variant hover:text-on-surface transition-colors" href="/why/">Why Wordflow</a>
-        <a class="font-headline text-base tracking-tight text-on-surface-variant hover:text-on-surface transition-colors" href="index.html#pricing">Pricing</a>
-        <a class="font-headline text-base tracking-tight text-primary font-medium border-b border-primary" href="/about/">About</a>
-      </div>
-      <a href="index.html#early-access" class="px-7 py-3 bg-on-surface text-background rounded-full font-medium hover:opacity-90 transition-opacity text-sm">
-        Get early access
-      </a>
-    </div>
-  </nav>
+  <?php require __DIR__ . '/_nav.php'; ?>
 
   <main class="pt-40 pb-32">
 
@@ -127,7 +111,7 @@
           <div class="hero-fade-left hd1 relative">
             <!-- Replace src with your actual photo -->
             <div class="w-full aspect-[3/4] rounded-3xl overflow-hidden relative">
-              <img src="mark.webp" alt="Mark, Maker of Wordflow" class="w-full h-full object-cover" />
+              <img src="/mark.webp" alt="Mark, Maker of Wordflow" class="w-full h-full object-cover" />
               <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-on-surface/50 to-transparent">
                 <p class="text-background font-headline italic text-2xl">Mark</p>
                 <p class="text-background/60 text-sm font-light">Maker of Wordflow</p>
@@ -251,19 +235,7 @@
 
   </main>
 
-  <!-- Footer -->
-  <footer class="w-full py-16 bg-background border-t border-outline/20 mt-24" role="contentinfo">
-    <div class="flex flex-col md:flex-row justify-between items-center px-12 max-w-7xl mx-auto gap-8 md:gap-0">
-      <a href="/" class="font-headline italic text-on-surface-variant text-3xl">Wordflow.</a>
-      <nav class="flex gap-12" aria-label="Footer navigation">
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/why/">Why</a>
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/about/">About</a>
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">Privacy</a>
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">Contact</a>
-      </nav>
-      <div class="font-body text-xs tracking-widest text-on-surface-variant opacity-60 uppercase">© 2026 Wordflow. Quietly Crafted.</div>
-    </div>
-  </footer>
+  <?php require __DIR__ . '/_footer.php'; ?>
 
   <script>
     const bar = document.getElementById('scroll-progress');

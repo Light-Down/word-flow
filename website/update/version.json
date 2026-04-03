@@ -1,0 +1,5 @@
+{
+    "version": "1.0.0",
+    "updateURL": "https://word-flow.store/update",
+    "releaseNotes": "First official release of Wordflow. Speech recognition via Groq, global hotkey, transcription history, and settings."
+}

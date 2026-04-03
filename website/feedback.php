@@ -1,10 +1,10 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/_mailer.php';
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -12,8 +12,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+csrf_verify();
+rate_limit('feedback', 10, 900); // max 10 per IP per 15 min
+
+// Honeypot — bots fill this, humans don't
+if (!empty($_POST['website'] ?? '')) {
+    echo json_encode(['status' => 'success', 'message' => 'Thank you!']);
+    exit;
+}
+
+$name        = trim($_POST['name']    ?? '');
+$email       = trim($_POST['email']   ?? '');
 $message     = trim($_POST['message'] ?? '');
-$email       = trim($_POST['email'] ?? '');
 $app_version = trim($_POST['version'] ?? '');
 
 if (empty($message)) {
@@ -24,18 +34,25 @@ if (empty($message)) {
 
 // Save to DB
 $db = get_db();
-$db->prepare('INSERT INTO feedback (email, message, app_version) VALUES (?, ?, ?)')
-   ->execute([$email ?: null, $message, $app_version ?: null]);
+$db->prepare('INSERT INTO feedback (name, email, message, app_version) VALUES (?, ?, ?, ?)')
+   ->execute([$name ?: null, $email ?: null, $message, $app_version ?: null]);
 
-// Forward to your inbox
-$subject = "Wordflow Feedback" . ($app_version ? " (v$app_version)" : "");
-$body    = "Version: $app_version\n"
-         . "Email: " . ($email ?: "anonymous") . "\n\n"
-         . "Message:\n$message";
+// Notify admin via Hostinger SMTP
+smtp_send(
+    to:      ADMIN_EMAIL,
+    toName:  'Mark',
+    subject: 'New Feedback' . ($name ? " from $name" : '') . ($app_version ? " (v$app_version)" : ''),
+    html:    mailer_admin_feedback_html($name, $email, $message, $app_version)
+);
 
-$headers = "From: Wordflow Feedback <" . FROM_EMAIL . ">\r\n"
-         . "Content-Type: text/plain; charset=UTF-8";
-
-mail(ADMIN_EMAIL, $subject, $body, $headers);
+// Send thank-you to user (only if they gave an email)
+if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    smtp_send(
+        to:      $email,
+        toName:  $name,
+        subject: 'Thanks for your feedback — Wordflow',
+        html:    mailer_thank_you_html($name)
+    );
+}
 
 echo json_encode(['status' => 'success', 'message' => 'Thank you for your feedback!']);

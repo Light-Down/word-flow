@@ -1,7 +1,14 @@
 <?php
 
+// Serve static files directly (images, fonts, etc.)
+$requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$staticFile = __DIR__ . $requestPath;
+if ($requestPath !== '/' && file_exists($staticFile) && is_file($staticFile)) {
+    return false;
+}
+
 // Strip leading/trailing slashes, default to 'index'
-$path = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
+$path = trim($requestPath, '/');
 if ($path === '') $path = 'index';
 
 // Route map: URL path => PHP file
@@ -12,6 +19,13 @@ $routes = [
     'impressum'   => 'impressum.php',
     'datenschutz' => 'datenschutz.php',
     'agb'         => 'agb.php',
+    'admin'       => 'admin.php',
+    'feedback'    => 'feedback.php',
+    'contact'     => 'contact.php',
+    'signup'      => 'signup.php',
+    'download'    => 'download.php',
+    'changelog'   => 'changelog.php',
+    'update'      => 'update.php',
 ];
 
 if (isset($routes[$path])) {

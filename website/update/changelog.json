@@ -1,0 +1,13 @@
+[
+    {
+        "version": "1.0.0",
+        "date": "2026-04-03",
+        "notes": [
+            "First official release of Wordflow.",
+            "Speech recognition powered by Groq Whisper.",
+            "Global hotkey to record and insert text anywhere.",
+            "Transcription history.",
+            "Settings for model, language, and text corrections."
+        ]
+    }
+]

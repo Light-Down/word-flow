@@ -1,20 +1,17 @@
+<?php
+require_once __DIR__ . '/security.php';
+$csrf = csrf_token();
+?>
 <!DOCTYPE html>
 <html class="light" lang="en">
 
 <head>
   <meta charset="utf-8" />
+  <meta name="csrf-token" content="<?= htmlspecialchars($csrf) ?>" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>Wordflow — Speak freely. Write brilliantly.</title>
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com" rel="preconnect" />
-  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Inter:wght@300;400;500;600&display=swap"
-    rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-    rel="stylesheet" />
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Fonts -->  <!-- Tailwind -->  <link rel="stylesheet" href="/assets/fonts.css" />
+  <script src="/assets/tailwind.js"></script>
   <script id="tailwind-config">
     tailwind.config = {
       darkMode: "class",
@@ -158,6 +155,11 @@
       transform: translateY(-4px);
     }
 
+    /* ─── Smooth Scroll ─── */
+    html {
+      scroll-behavior: smooth;
+    }
+
     /* ─── Scroll Progress Bar ─── */
     #scroll-progress {
       position: fixed;
@@ -260,26 +262,7 @@
   <div id="scroll-progress" aria-hidden="true"></div>
 
   <!-- ─── Navigation ─── -->
-  <nav class="fixed top-0 w-full z-50 glass-nav border-b border-outline/30" role="navigation"
-    aria-label="Main navigation">
-    <div class="flex justify-between items-center h-20 px-8 max-w-7xl mx-auto">
-      <div class="font-headline text-3xl font-bold text-on-surface tracking-tight" aria-label="Wordflow home">Wordflow
-      </div>
-      <div class="hidden md:flex items-center space-x-10">
-        <a class="font-headline text-base tracking-tight text-on-surface-variant hover:text-on-surface transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          href="#features">Features</a>
-        <a class="font-headline text-base tracking-tight text-on-surface-variant hover:text-on-surface transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          href="/why/">Why Wordflow</a>
-        <a class="font-headline text-base tracking-tight text-on-surface-variant hover:text-on-surface transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          href="#pricing">Pricing</a>
-        <a class="font-headline text-base tracking-tight text-on-surface-variant hover:text-on-surface transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          href="/about/">About</a>
-      </div>
-      <a href="#early-access"
-        class="px-8 py-3 bg-on-surface text-background rounded-full font-medium hover:opacity-90 transition-opacity duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[44px] flex items-center">Get
-        Started</a>
-    </div>
-  </nav>
+  <?php require __DIR__ . '/_nav.php'; ?>
 
   <main class="pt-40">
 
@@ -293,8 +276,7 @@
             <div
               class="hero-fade hero-d1 inline-flex items-center gap-3 bg-surface-container px-5 py-2 rounded-full border border-outline/30">
               <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              <span class="text-xs uppercase tracking-[0.2em] text-on-surface-variant font-semibold">Mac Menu Bar App ·
-                BYOK · One-Time Payment</span>
+              <span class="text-xs uppercase tracking-[0.2em] text-on-surface-variant font-semibold">Mac Menu Bar App · BYOK · Free for first 100 · then €15</span>
             </div>
             <h1 id="hero-headline"
               class="hero-fade hero-d2 font-headline text-5xl md:text-6xl leading-[1.1] text-on-surface tracking-tight">
@@ -328,7 +310,7 @@
           <div class="hero-fade hero-d5 flex items-center gap-8">
             <a href="#early-access"
               class="pill-gradient inner-glow px-10 py-5 rounded-full text-background font-semibold editorial-shadow flex items-center gap-3 group transition-transform hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[44px]">
-              Start speaking
+              Get Early Access
               <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform"
                 aria-hidden="true">arrow_forward</span>
             </a>
@@ -836,18 +818,20 @@
       <div class="max-w-3xl mx-auto px-8 text-center space-y-10">
         <div class="inline-flex items-center gap-3 bg-white/10 px-5 py-2 rounded-full border border-white/10">
           <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-          <span class="text-xs uppercase tracking-[0.2em] text-background/60 font-semibold">Limited Beta · 100 Free Copies</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-background/60 font-semibold">Limited Beta · First 100 users free</span>
         </div>
         <h2 id="early-access-headline" class="font-headline text-6xl text-background leading-[1.1]">
-          Get Wordflow free. <br /><span class="italic text-primary font-light">First 100 users.</span>
+          Get Wordflow <span class="italic text-primary font-light">free.</span>
         </h2>
         <p class="text-xl text-background/60 font-light leading-relaxed max-w-xl mx-auto">
-          Enter your email — we'll send you a direct download link and setup guide. No credit card. No strings.
-          After 100 spots, it's €25 one-time.
+          The first 100 users get Wordflow completely free — no credit card, no strings.
+          <strong class="text-background/80">After that: €15 Early Bird, then €25 at launch.</strong>
         </p>
 
         <!-- Signup Form -->
         <form id="signup-form" class="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto" novalidate>
+          <!-- Honeypot — hidden from humans, bots fill it in -->
+          <input type="text" name="url" id="signup-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;" />
           <input
             type="email"
             name="email"
@@ -862,14 +846,14 @@
             id="signup-btn"
             class="px-8 py-4 bg-primary rounded-full text-background font-semibold hover:bg-primary/90 transition-all duration-300 shadow-xl shadow-primary/20 whitespace-nowrap min-h-[52px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-on-surface"
           >
-            Claim my free copy
+            Claim my free copy →
           </button>
         </form>
 
         <div id="signup-message" class="hidden text-center"></div>
 
         <p class="text-background/30 text-xs font-light">
-          <span id="slots-counter">100</span> spots remaining · Mac only · No spam, ever
+          Free for the first 100 · Mac only · No spam, ever
         </p>
       </div>
     </section>
@@ -918,29 +902,53 @@
 
             <!-- Right: Price -->
             <div
-              class="w-full md:w-2/5 bg-on-surface p-20 flex flex-col justify-center items-center text-center space-y-8 relative overflow-hidden">
+              class="w-full md:w-2/5 bg-on-surface p-16 flex flex-col justify-center items-center text-center space-y-6 relative overflow-hidden">
               <div
                 class="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary to-transparent"
                 aria-hidden="true"></div>
-              <div class="relative z-10 text-background/60 text-[10px] uppercase tracking-[0.3em] font-bold">Wordflow
-                Lifetime</div>
+
+              <!-- Badge -->
+              <div class="relative z-10 bg-primary/20 text-primary text-[10px] uppercase tracking-[0.2em] font-bold px-4 py-1.5 rounded-full">
+                Wordflow Lifetime
+              </div>
+
+              <!-- Launch price -->
               <div class="relative z-10">
                 <span id="price-counter" class="text-7xl font-headline text-background">€25</span>
+                <p class="text-background/40 text-sm font-light mt-1">One-time · Lifetime updates</p>
               </div>
-              <div class="relative z-10 space-y-2">
-                <p class="text-background/50 text-sm font-light leading-relaxed">One-time payment. <br />Lifetime
-                  updates.</p>
-                <div class="flex items-center justify-center gap-2 mt-2">
-                  <span class="material-symbols-outlined text-primary text-sm" aria-hidden="true">info</span>
-                  <p class="text-primary text-xs font-medium">+ Groq free tier = €0/month running cost</p>
+
+              <!-- Price ladder -->
+              <div class="relative z-10 w-full space-y-2 border-t border-background/10 pt-6">
+                <p class="text-background/40 text-[10px] uppercase tracking-[0.2em] font-bold mb-3">Price increases as we grow</p>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                    <span class="text-background font-semibold">First 100 users</span>
+                  </span>
+                  <span class="text-primary font-bold">Free</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-background/30"></span>
+                    <span class="text-background/50">Early Bird</span>
+                  </span>
+                  <span class="text-background/50">€15</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-background/20"></span>
+                    <span class="text-background/40">Launch price</span>
+                  </span>
+                  <span class="text-background/40">€25</span>
                 </div>
               </div>
-              <button
-                class="relative z-10 w-full py-5 bg-primary rounded-full text-background font-bold hover:bg-primary/90 transition-all duration-300 shadow-xl shadow-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-on-surface min-h-[44px]">
-                Purchase Now
-              </button>
-              <p class="relative z-10 text-background/30 text-xs font-light">Mac only · Instant download · No
-                subscription</p>
+
+              <a href="#early-access"
+                class="relative z-10 w-full py-5 bg-primary rounded-full text-background font-bold hover:bg-primary/90 transition-all duration-300 shadow-xl shadow-primary/20 text-center block focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-on-surface min-h-[44px]">
+                Claim my free copy →
+              </a>
+              <p class="relative z-10 text-background/30 text-xs font-light">Mac only · Instant download · No subscription</p>
             </div>
 
           </div>
@@ -950,27 +958,32 @@
 
   </main>
 
-  <!-- ─── Footer ─── -->
-  <footer class="w-full py-32 bg-background border-t border-outline/20" role="contentinfo">
-    <div class="flex flex-col md:flex-row justify-between items-center px-12 max-w-7xl mx-auto gap-12 md:gap-0">
-      <div class="font-headline italic text-on-surface-variant text-3xl">Wordflow.</div>
-      <nav class="flex gap-16" aria-label="Footer navigation">
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-          href="/datenschutz/">Privacy</a>
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-          href="/agb/">Terms</a>
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-          href="/impressum/">Impressum</a>
-        <a class="font-headline text-sm tracking-widest text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-          href="mailto:info@olenberg-media.de">Contact</a>
-      </nav>
-      <div class="font-body text-xs tracking-widest text-on-surface-variant opacity-60 uppercase">© 2026 Wordflow.
-        Quietly Crafted.</div>
-    </div>
-  </footer>
+  <?php require __DIR__ . '/_footer.php'; ?>
 
   <script>
     // ─── Scroll Progress Bar ────────────────────────────────────────
+    // ─── Smooth scroll to hash on page load ────────────────────────
+    if (window.location.hash) {
+      const target = document.querySelector(window.location.hash);
+      if (target) {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+
+    // ─── Smooth scroll for all anchor links ─────────────────────────
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', e => {
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.pushState(null, '', link.getAttribute('href'));
+        }
+      });
+    });
+
     const progressBar = document.getElementById('scroll-progress');
     window.addEventListener('scroll', () => {
       const scrolled = window.scrollY;
@@ -1058,6 +1071,7 @@
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (document.getElementById('signup-honeypot').value) return; // Bot
         const email = document.getElementById('signup-email').value.trim();
         if (!email) return;
 
@@ -1065,9 +1079,13 @@
         btn.textContent = 'Sending…';
 
         try {
-          const res  = await fetch('signup.php', {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+          const res  = await fetch('/signup', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRF-Token': csrfToken,
+            },
             body: 'email=' + encodeURIComponent(email),
           });
           const data = await res.json();

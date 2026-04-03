@@ -1,14 +1,22 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/security.php';
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
+    exit;
+}
+
+csrf_verify();
+rate_limit('signup', 5, 900); // max 5 per IP per 15 min
+
+// Honeypot check
+if (!empty($_POST['url'] ?? '')) {
+    echo json_encode(['status' => 'success']);
     exit;
 }
 
@@ -38,75 +46,88 @@ if ($existing) {
     exit;
 }
 
-// Count current free slots used
+// Use hard limit internally, show marketing limit on site
 $count = (int) $db->query('SELECT COUNT(*) FROM signups WHERE type = "free"')->fetchColumn();
-$type  = $count < MAX_FREE_USERS ? 'free' : 'waitlist';
+$type  = $count < MAX_FREE_USERS_HARD ? 'free' : 'waitlist';
+
+// Generate unique download token for free users
+$token = $type === 'free' ? bin2hex(random_bytes(32)) : null;
 
 // Save to DB
-$db->prepare('INSERT INTO signups (email, type) VALUES (?, ?)')->execute([$email, $type]);
+$db->prepare('INSERT INTO signups (email, type, token) VALUES (?, ?, ?)')->execute([$email, $type, $token]);
 
-// Add contact to Brevo
-add_to_brevo($email, $type);
+// Add to Brevo contact list
+brevo_add_contact($email, $type);
 
-// Send confirmation email
-send_confirmation($email, $type, $count + 1);
+// Send confirmation via Brevo template
+$templateId = $type === 'free' ? BREVO_TPL_FREE : BREVO_TPL_WAITLIST;
+$downloadLink = $token
+    ? (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/download?token=' . $token
+    : null;
+
+brevo_send_template($email, $templateId, [
+    'download_url' => $downloadLink ?? DOWNLOAD_URL,
+]);
+
+// Notify yourself
+brevo_send_mail(
+    to:      ADMIN_EMAIL,
+    subject: "New signup: $email ($type #" . ($count + 1) . ")",
+    text:    "Email: $email\nType: $type\nSlot: " . ($count + 1)
+);
 
 echo json_encode([
     'status'     => 'success',
     'type'       => $type,
     'slot'       => $type === 'free' ? ($count + 1) : null,
-    'slots_left' => $type === 'free' ? (MAX_FREE_USERS - $count - 1) : 0,
+    'slots_left' => max(0, MAX_FREE_USERS - $count - 1),
     'message'    => $type === 'free'
         ? 'You\'re in! Check your inbox for your download link.'
         : 'You\'re on the waitlist! We\'ll notify you at launch.',
 ]);
 
-// ─── Helpers ──────────────────────────────────────────────────────
+// ─── Brevo Helpers ────────────────────────────────────────────────────────
 
-function add_to_brevo(string $email, string $type): void {
-    $payload = json_encode([
-        'email'      => $email,
-        'listIds'    => [BREVO_LIST_ID],
-        'attributes' => ['TYPE' => $type],
-        'updateEnabled' => false,
-    ]);
-
-    $ch = curl_init('https://api.brevo.com/v3/contacts');
+function brevo_request(string $endpoint, array $payload): array {
+    $ch = curl_init('https://api.brevo.com/v3/' . $endpoint);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_POSTFIELDS     => json_encode($payload),
         CURLOPT_HTTPHEADER     => [
             'api-key: ' . BREVO_API_KEY,
             'Content-Type: application/json',
             'Accept: application/json',
         ],
     ]);
-    curl_exec($ch);
+    $response = curl_exec($ch);
     curl_close($ch);
+    return json_decode($response ?: '{}', true) ?? [];
 }
 
-function send_confirmation(string $email, string $type, int $slot): void {
-    if ($type === 'free') {
-        $subject = "Your free copy of Wordflow is ready 🎙";
-        $body    = "Hi,\n\nYou're #$slot of " . MAX_FREE_USERS . " — welcome to the Wordflow beta!\n\n"
-                 . "Download your copy here:\n" . DOWNLOAD_URL . "\n\n"
-                 . "Setup is quick — just add your Groq API key (free tier is plenty for most users).\n\n"
-                 . "I'd love to hear what you think. You can send feedback directly in the app.\n\n"
-                 . "— Wordflow";
-    } else {
-        $subject = "You're on the Wordflow waitlist";
-        $body    = "Hi,\n\nThe first 100 free slots are taken, but you're on the list.\n\n"
-                 . "You'll be the first to know when Wordflow launches publicly at €25.\n\n"
-                 . "— Wordflow";
-    }
+function brevo_send_template(string $to, int $templateId, array $params = []): void {
+    brevo_request('smtp/email', [
+        'to'         => [['email' => $to]],
+        'templateId' => $templateId,
+        'params'     => $params,
+    ]);
+}
 
-    $headers = "From: " . FROM_NAME . " <" . FROM_EMAIL . ">\r\n"
-             . "Reply-To: " . ADMIN_EMAIL . "\r\n"
-             . "Content-Type: text/plain; charset=UTF-8";
+function brevo_add_contact(string $email, string $type): void {
+    brevo_request('contacts', [
+        'email'         => $email,
+        'listIds'       => [BREVO_LIST_ID],
+        'attributes'    => ['TYPE' => strtoupper($type)],
+        'updateEnabled' => true,
+    ]);
+}
 
-    mail($email, $subject, $body, $headers);
-
-    // Also notify yourself
-    mail(ADMIN_EMAIL, "New signup: $email ($type #$slot)", "Email: $email\nType: $type\nSlot: $slot", $headers);
+function brevo_send_mail(string $to, string $subject, string $text): void {
+    brevo_request('smtp/email', [
+        'sender'     => ['name' => FROM_NAME, 'email' => FROM_EMAIL],
+        'to'         => [['email' => $to]],
+        'replyTo'    => ['email' => ADMIN_EMAIL],
+        'subject'    => $subject,
+        'textContent' => $text,
+    ]);
 }

@@ -1,29 +1,39 @@
+<?php require_once __DIR__ . "/security.php"; ?>
 <!DOCTYPE html>
 <html class="light" lang="en">
 
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Privacy Policy — Wordflow</title>
-  <link href="https://fonts.googleapis.com" rel="preconnect" />
-  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
+  <title>Privacy Policy — Wordflow</title>  <link rel="stylesheet" href="/assets/fonts.css" />
+  <script src="/assets/tailwind.js"></script>
+  <script id="tailwind-config">
     tailwind.config = {
+      darkMode: "class",
       theme: {
         extend: {
           colors: {
             "primary": "#D2691E",
+            "on-primary": "#FFFFFF",
             "background": "#FDFBF7",
+            "surface": "#F7F3EE",
             "on-surface": "#1A1A1A",
             "on-surface-variant": "#4A4A4A",
             "outline": "#D1CDC7",
             "surface-container": "#F2EDE6",
+            "surface-container-high": "#EBE5DB",
+            "surface-container-low": "#FAF7F2",
+            "secondary": "#2C3E50",
           },
           fontFamily: {
             "headline": ["Newsreader", "serif"],
             "body": ["Inter", "sans-serif"],
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px"
           },
         },
       },
@@ -41,12 +51,7 @@
 
 <body class="bg-background text-on-surface font-body">
 
-  <nav class="fixed top-0 w-full z-50 glass-nav border-b border-outline/30">
-    <div class="flex justify-between items-center h-20 px-8 max-w-5xl mx-auto">
-      <a href="/" class="font-headline text-3xl font-bold text-on-surface tracking-tight">Wordflow</a>
-      <a href="/" class="text-sm text-on-surface-variant hover:text-on-surface transition-colors">← Back to Wordflow</a>
-    </div>
-  </nav>
+  <?php require __DIR__ . '/_nav.php'; ?>
 
   <main class="pt-40 pb-32 max-w-2xl mx-auto px-8">
 
@@ -79,17 +84,20 @@
         </ul>
         <p class="mt-3"><strong>Purpose:</strong> To send you your download link and product updates.<br />
         <strong>Legal basis:</strong> Art. 6(1)(b) GDPR — necessary to fulfil your request.<br />
+        <strong>Storage:</strong> Stored in a database on our server (Hostinger, EU). Email delivery is handled via Brevo (see section 3).<br />
         <strong>Retention:</strong> Until you unsubscribe or request deletion.</p>
 
         <h3 class="font-medium text-on-surface mt-5 mb-2">2.2 Feedback submissions</h3>
-        <p>If you submit feedback (via the website or the Wordflow app), we collect:</p>
+        <p>If you submit feedback via the website feedback form, we collect:</p>
         <ul class="list-disc list-inside mt-2 space-y-1 ml-2">
           <li>Your feedback message</li>
+          <li>Optionally: your name (if you choose to provide it)</li>
           <li>Optionally: your email address (if you choose to provide it)</li>
-          <li>App version number</li>
+          <li>App version number (when submitted from within the app)</li>
         </ul>
         <p class="mt-3"><strong>Purpose:</strong> To improve the product.<br />
         <strong>Legal basis:</strong> Art. 6(1)(f) GDPR — legitimate interest in improving the service.<br />
+        <strong>Storage:</strong> Stored in a database on our server (Hostinger, EU) and optionally forwarded to our email address.<br />
         <strong>Retention:</strong> Until no longer needed for product development.</p>
 
         <h3 class="font-medium text-on-surface mt-5 mb-2">2.3 Data we do NOT collect</h3>
@@ -111,8 +119,8 @@
         <h3 class="font-medium text-on-surface mt-5 mb-2">Groq (in-app, not this website)</h3>
         <p>The Wordflow app uses the Groq API for transcription and text processing. This connection is established using <em>your own</em> Groq API key — no data passes through Wordflow's servers. Groq's privacy policy applies directly between you and Groq: <a href="https://groq.com/privacy-policy/" class="text-primary hover:underline" target="_blank" rel="noopener">groq.com/privacy-policy</a></p>
 
-        <h3 class="font-medium text-on-surface mt-5 mb-2">Google Fonts &amp; CDN resources</h3>
-        <p>This website loads fonts from Google Fonts and a Tailwind CSS CDN. These requests may transmit your IP address to Google and Tailwind's CDN provider. We plan to self-host these resources in a future update to eliminate this transfer.</p>
+        <h3 class="font-medium text-on-surface mt-5 mb-2">Fonts &amp; CSS</h3>
+        <p>All fonts and stylesheets are self-hosted on our server. No requests are made to Google Fonts, CDN providers, or any other external service when you load this website.</p>
       </section>
 
       <section>
@@ -146,14 +154,7 @@
 
   </main>
 
-  <footer class="border-t border-outline/20 py-10">
-    <div class="max-w-2xl mx-auto px-8 flex flex-wrap gap-8 text-xs text-on-surface-variant">
-      <a href="/impressum/" class="hover:text-on-surface transition-colors">Impressum</a>
-      <a href="/datenschutz/" class="hover:text-on-surface transition-colors">Datenschutz</a>
-      <a href="/agb/" class="hover:text-on-surface transition-colors">Terms & Conditions</a>
-      <span class="ml-auto">© 2026 Mark Olenberg</span>
-    </div>
-  </footer>
+  <?php require __DIR__ . '/_footer.php'; ?>
 
 </body>
 </html>

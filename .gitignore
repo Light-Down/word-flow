@@ -19,6 +19,17 @@ DerivedData/
 # Secrets & config with credentials
 website/config.php
 
+# SQLite database (contains user data)
+website/wordflow.db
+
+# Protected download files (upload manually to server)
+website/files/*.zip
+website/files/*.dmg
+website/files/dist/*.dmg
+website/files/dist/*.zip
+website/wordflow.db-shm
+website/wordflow.db-wal
+
 # Logs
 *.log
 

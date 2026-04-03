@@ -3,7 +3,6 @@
 # Domain: word-flow.store
 # ===================================
 
-Options -Indexes +FollowSymLinks
 RewriteEngine On
 RewriteBase /
 DirectoryIndex index.php index.html
@@ -16,7 +15,7 @@ DirectoryIndex index.php index.html
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self';"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self';"
 </IfModule>
 
 # ===================================
@@ -26,14 +25,12 @@ DirectoryIndex index.php index.html
 # Block hidden files (.git, .env, etc.)
 RewriteRule (^\.|/\.) - [F,L]
 
-# Block access to internal PHP files
-<FilesMatch "^(config|db|router|setup)\.php$">
-    Order Deny,Allow
-    Deny from all
-</FilesMatch>
+# Block direct browser access to internal PHP files (router.php is allowed internally)
+RewriteCond %{THE_REQUEST} \s/(config|db|setup|_footer|_nav|_mailer)\.php [NC]
+RewriteRule ^ - [F,L]
 
-# Block access to sensitive directories
-RewriteRule ^(config|includes|data|cache)(/|$) - [F,L]
+# Block access to protected directories
+RewriteRule ^files/ - [F,L]
 
 # ===================================
 # 3. CANONICAL REDIRECTS
@@ -125,9 +122,6 @@ RewriteRule ^(.*)$ router.php [QSA,L]
     </FilesMatch>
     <FilesMatch "\.(html|php)$">
         Header set Cache-Control "public, max-age=3600, must-revalidate"
-    </FilesMatch>
-    <FilesMatch "\.(avif|webp)$">
-        Header append Vary Accept
     </FilesMatch>
 </IfModule>
 

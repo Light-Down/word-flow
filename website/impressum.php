@@ -1,29 +1,39 @@
+<?php require_once __DIR__ . "/security.php"; ?>
 <!DOCTYPE html>
 <html class="light" lang="de">
 
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Impressum — Wordflow</title>
-  <link href="https://fonts.googleapis.com" rel="preconnect" />
-  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
+  <title>Impressum — Wordflow</title>  <link rel="stylesheet" href="/assets/fonts.css" />
+  <script src="/assets/tailwind.js"></script>
+  <script id="tailwind-config">
     tailwind.config = {
+      darkMode: "class",
       theme: {
         extend: {
           colors: {
             "primary": "#D2691E",
+            "on-primary": "#FFFFFF",
             "background": "#FDFBF7",
+            "surface": "#F7F3EE",
             "on-surface": "#1A1A1A",
             "on-surface-variant": "#4A4A4A",
             "outline": "#D1CDC7",
             "surface-container": "#F2EDE6",
+            "surface-container-high": "#EBE5DB",
+            "surface-container-low": "#FAF7F2",
+            "secondary": "#2C3E50",
           },
           fontFamily: {
             "headline": ["Newsreader", "serif"],
             "body": ["Inter", "sans-serif"],
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px"
           },
         },
       },
@@ -40,14 +50,7 @@
 
 <body class="bg-background text-on-surface font-body">
 
-  <nav class="fixed top-0 w-full z-50 glass-nav border-b border-outline/30">
-    <div class="flex justify-between items-center h-20 px-8 max-w-5xl mx-auto">
-      <a href="/" class="font-headline text-3xl font-bold text-on-surface tracking-tight">Wordflow</a>
-      <a href="/" class="text-sm text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-2">
-        ← Back to Wordflow
-      </a>
-    </div>
-  </nav>
+  <?php require __DIR__ . '/_nav.php'; ?>
 
   <main class="pt-40 pb-32 max-w-2xl mx-auto px-8">
 
@@ -97,14 +100,7 @@
 
   </main>
 
-  <footer class="border-t border-outline/20 py-10">
-    <div class="max-w-2xl mx-auto px-8 flex flex-wrap gap-8 text-xs text-on-surface-variant">
-      <a href="/impressum/" class="hover:text-on-surface transition-colors">Impressum</a>
-      <a href="/datenschutz/" class="hover:text-on-surface transition-colors">Datenschutz</a>
-      <a href="/agb/" class="hover:text-on-surface transition-colors">Terms & Conditions</a>
-      <span class="ml-auto">© 2026 Mark Olenberg</span>
-    </div>
-  </footer>
+  <?php require __DIR__ . '/_footer.php'; ?>
 
 </body>
 </html>
