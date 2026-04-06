@@ -1,44 +1,16 @@
-<?php require_once __DIR__ . "/security.php"; ?>
+<?php require_once __DIR__ . "/security.php"; csrf_token(); ?>
 <!DOCTYPE html>
 <html class="light" lang="en">
 
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>About — Wordflow</title>  <link rel="stylesheet" href="/assets/fonts.css" />
-  <script src="/assets/tailwind.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#D2691E",
-            "on-primary": "#FFFFFF",
-            "background": "#FDFBF7",
-            "surface": "#F7F3EE",
-            "on-surface": "#1A1A1A",
-            "on-surface-variant": "#4A4A4A",
-            "outline": "#D1CDC7",
-            "surface-container": "#F2EDE6",
-            "surface-container-high": "#EBE5DB",
-            "surface-container-low": "#FAF7F2",
-            "secondary": "#2C3E50",
-          },
-          fontFamily: {
-            "headline": ["Newsreader", "serif"],
-            "body": ["Inter", "sans-serif"],
-          },
-          borderRadius: {
-            "DEFAULT": "0.5rem",
-            "lg": "1rem",
-            "xl": "1.5rem",
-            "full": "9999px"
-          },
-        },
-      },
-    }
-  </script>
+  <title>About — Wordflow</title>  <!-- Preload critical fonts -->
+  <link rel="preload" href="/assets/fonts/1ab1ad55.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/78bd98e5.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Fonts & Styles -->
+  <link rel="stylesheet" href="/assets/fonts.css" />
+  <link rel="stylesheet" href="/assets/app.css" />
   <style>
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;

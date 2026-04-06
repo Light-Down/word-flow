@@ -1,44 +1,16 @@
-<?php require_once __DIR__ . "/security.php"; ?>
+<?php require_once __DIR__ . "/security.php"; csrf_token(); ?>
 <!DOCTYPE html>
 <html class="light" lang="en">
 
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Terms & Conditions — Wordflow</title>  <link rel="stylesheet" href="/assets/fonts.css" />
-  <script src="/assets/tailwind.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#D2691E",
-            "on-primary": "#FFFFFF",
-            "background": "#FDFBF7",
-            "surface": "#F7F3EE",
-            "on-surface": "#1A1A1A",
-            "on-surface-variant": "#4A4A4A",
-            "outline": "#D1CDC7",
-            "surface-container": "#F2EDE6",
-            "surface-container-high": "#EBE5DB",
-            "surface-container-low": "#FAF7F2",
-            "secondary": "#2C3E50",
-          },
-          fontFamily: {
-            "headline": ["Newsreader", "serif"],
-            "body": ["Inter", "sans-serif"],
-          },
-          borderRadius: {
-            "DEFAULT": "0.5rem",
-            "lg": "1rem",
-            "xl": "1.5rem",
-            "full": "9999px"
-          },
-        },
-      },
-    }
-  </script>
+  <title>Terms & Conditions — Wordflow</title>  <!-- Preload critical fonts -->
+  <link rel="preload" href="/assets/fonts/1ab1ad55.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/78bd98e5.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Fonts & Styles -->
+  <link rel="stylesheet" href="/assets/fonts.css" />
+  <link rel="stylesheet" href="/assets/app.css" />
   <style>
     .glass-nav {
       backdrop-filter: blur(20px);
@@ -87,7 +59,7 @@
       <section>
         <h2 class="font-semibold text-on-surface text-sm uppercase tracking-widest mb-3">4. Right of withdrawal (14-day return policy)</h2>
         <p>You have the right to withdraw from this contract within <strong>14 days</strong> of purchase without giving any reason.</p>
-        <p class="mt-3">To exercise your right of withdrawal, notify us by email at <a href="mailto:info@olenberg-media.de" class="text-primary hover:underline">info@olenberg-media.de</a> within 14 days of your purchase. Please include your purchase confirmation.</p>
+        <p class="mt-3">To exercise your right of withdrawal, notify us by email at <a href="mailto:contact@word-flow.store" class="text-primary hover:underline">contact@word-flow.store</a> within 14 days of your purchase. Please include your purchase confirmation.</p>
         <p class="mt-3">Upon a valid withdrawal, we will refund your payment within 14 days using the same payment method used for the original transaction.</p>
         <div class="mt-4 bg-surface-container rounded-xl p-5 text-sm">
           <p><strong>Note:</strong> Under EU law (§ 356 Abs. 5 BGB), the right of withdrawal for digital goods may be waived if the buyer explicitly consents to immediate delivery and acknowledges the loss of withdrawal rights. We choose to offer the 14-day return policy regardless, as a matter of good faith.</p>
@@ -97,7 +69,7 @@
       <section>
         <h2 class="font-semibold text-on-surface text-sm uppercase tracking-widest mb-3">5. Updates and support</h2>
         <p>Lifetime updates means all future versions of Wordflow are included in your purchase at no additional cost, for as long as the product is actively maintained.</p>
-        <p class="mt-3">Support is provided on a best-effort basis via email at <a href="mailto:info@olenberg-media.de" class="text-primary hover:underline">info@olenberg-media.de</a>. We aim to respond within 3–5 business days.</p>
+        <p class="mt-3">Support is provided on a best-effort basis via email at <a href="mailto:contact@word-flow.store" class="text-primary hover:underline">contact@word-flow.store</a>. We aim to respond within 3–5 business days.</p>
       </section>
 
       <section>
@@ -115,7 +87,7 @@
       <section>
         <h2 class="font-semibold text-on-surface text-sm uppercase tracking-widest mb-3">8. Contact</h2>
         <p>For any questions regarding these terms:<br />
-        <a href="mailto:info@olenberg-media.de" class="text-primary hover:underline">info@olenberg-media.de</a><br />
+        <a href="mailto:contact@word-flow.store" class="text-primary hover:underline">contact@word-flow.store</a><br />
         Mark Olenberg, Sossenheimer Riedstraße 18, 65936 Frankfurt am Main, Germany</p>
       </section>
 

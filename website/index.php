@@ -8,43 +8,39 @@ $csrf = csrf_token();
 <head>
   <meta charset="utf-8" />
   <meta name="csrf-token" content="<?= htmlspecialchars($csrf) ?>" />
+  <!-- ── Supabase Magic Link → App Deep Link Handler ───────────────────────
+       Supabase redirects to this page with #access_token=... in the fragment.
+       We immediately forward everything to wordflow://activate so the app
+       can pick up the session. The user sees a brief "Opening Wordflow…" screen.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script>
+    (function () {
+      var hash = window.location.hash;
+      if (hash && hash.indexOf('access_token=') !== -1) {
+        // Build the deep link: wordflow://activate#access_token=...
+        var deepLink = 'wordflow://activate' + hash;
+        // Redirect the app via custom scheme
+        window.location.href = deepLink;
+        // Show a simple overlay so the user sees something while the app opens
+        document.addEventListener('DOMContentLoaded', function () {
+          document.body.innerHTML =
+            '<div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#FDFBF7;font-family:Georgia,serif;gap:16px;">' +
+            '<p style="font-size:28px;font-weight:700;color:#1A1A1A;margin:0;">Wordflow.</p>' +
+            '<p style="font-size:15px;color:#4A4A4A;margin:0;">Opening Wordflow&hellip;</p>' +
+            '<p style="font-size:13px;color:#9A9A9A;margin-top:8px;">If the app does not open, make sure Wordflow is installed and running.</p>' +
+            '</div>';
+        });
+      }
+    })();
+  </script>
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>Wordflow — Speak freely. Write brilliantly.</title>
-  <!-- Fonts -->  <!-- Tailwind -->  <link rel="stylesheet" href="/assets/fonts.css" />
-  <script src="/assets/tailwind.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#D2691E",
-            "on-primary": "#FFFFFF",
-            "background": "#FDFBF7",
-            "surface": "#F7F3EE",
-            "on-surface": "#1A1A1A",
-            "on-surface-variant": "#4A4A4A",
-            "outline": "#D1CDC7",
-            "surface-container": "#F2EDE6",
-            "surface-container-high": "#EBE5DB",
-            "surface-container-low": "#FAF7F2",
-            "secondary": "#2C3E50",
-          },
-          fontFamily: {
-            "headline": ["Newsreader", "serif"],
-            "body": ["Inter", "sans-serif"],
-            "label": ["Inter", "sans-serif"]
-          },
-          borderRadius: {
-            "DEFAULT": "0.5rem",
-            "lg": "1rem",
-            "xl": "1.5rem",
-            "full": "9999px"
-          },
-        },
-      },
-    }
-  </script>
+  <!-- Preload critical fonts -->
+  <link rel="preload" href="/assets/fonts/1ab1ad55.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/78bd98e5.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Fonts & Styles -->
+  <link rel="stylesheet" href="/assets/fonts.css" />
+  <link rel="stylesheet" href="/assets/app.css" />
   <style>
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
@@ -192,6 +188,10 @@ $csrf = csrf_token();
       opacity: 0;
       transform: translateY(24px);
       animation: heroFadeUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    /* LCP-Element sofort sichtbar — Animation läuft trotzdem */
+    .hero-lcp {
+      opacity: 1 !important;
     }
     .hero-slide-right {
       opacity: 0;
@@ -389,7 +389,7 @@ $csrf = csrf_token();
               class="hero-fade hero-d1 inline-flex items-center gap-3 bg-surface-container px-5 py-2 rounded-full border border-outline/30">
               <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
               <span class="text-xs uppercase tracking-[0.2em] text-on-surface-variant font-semibold">
-                <span class="hidden sm:inline">Mac Menu Bar App · BYOK · Free for first 100 · then €15</span>
+                <span class="hidden sm:inline">Mac Menu Bar App · BYOK · Free Lifetime during Early Access</span>
                 <span class="sm:hidden">BYOK · Free for first 100</span>
               </span>
             </div>
@@ -398,7 +398,7 @@ $csrf = csrf_token();
               Write <span class="italic text-primary font-light">as fast as you think.</span>
             </h1>
             <div class="max-w-xl space-y-4 md:space-y-6">
-              <p class="hero-fade hero-d3 fluid-lead text-on-surface-variant font-light leading-relaxed">
+              <p class="hero-fade hero-d3 hero-lcp fluid-lead text-on-surface-variant font-light leading-relaxed">
                 No more typing, formatting, or deleting. Just speak — Wordflow turns your messy thoughts into polished text in under a second. No subscription, ever.
               </p>
               <p class="hero-fade hero-d3 fluid-body text-on-surface font-semibold leading-relaxed italic">
@@ -424,7 +424,7 @@ $csrf = csrf_token();
           <div class="hero-fade hero-d5 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-8">
             <a href="#early-access"
               class="pill-gradient inner-glow px-8 py-4 sm:px-10 sm:py-5 rounded-full text-background font-semibold editorial-shadow flex items-center justify-center gap-3 group transition-transform hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[52px] sm:min-h-[44px]">
-              Get Early Access
+              Download for free →
               <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform"
                 aria-hidden="true">arrow_forward</span>
             </a>
@@ -1591,7 +1591,7 @@ $csrf = csrf_token();
 
       if (slider) {
         slider.addEventListener('input', onInput);
-        updateCalc();
+        requestAnimationFrame(updateCalc);
       }
     })();
     </script>
@@ -1651,44 +1651,63 @@ $csrf = csrf_token();
         <div class="inline-flex items-center gap-3 bg-white/10 px-4 py-2 rounded-full border border-white/10 max-w-full">
           <span class="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0"></span>
           <span class="text-xs uppercase tracking-[0.2em] text-background/60 font-semibold">
-            <span class="hidden sm:inline">Limited Beta · First 100 Users Free</span>
-            <span class="sm:hidden text-center block">Limited Beta<br>First 100 Users Free</span>
+            Early Access · Free Lifetime
           </span>
         </div>
         <h2 id="early-access-headline" class="font-headline fluid-h2 text-background leading-[1.1]">
           Get Wordflow <span class="italic text-primary font-light">free.</span>
         </h2>
         <p class="fluid-lead text-background/60 font-light leading-relaxed max-w-xl mx-auto">
-          The first 100 users get Wordflow completely free — no credit card, no strings.
-          <strong class="text-background/80">After that: €15 Early Bird, then €25 at launch.</strong>
+          During Early Access, Wordflow is completely free — yours forever.
+          <strong class="text-background/80">No credit card. No subscription. Lifetime access, on us.</strong>
         </p>
 
-        <!-- Signup Form -->
-        <form id="signup-form" class="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto" novalidate>
-          <!-- Honeypot — hidden from humans, bots fill it in -->
-          <input type="text" name="url" id="signup-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;" />
-          <input
-            type="email"
-            name="email"
-            id="signup-email"
-            placeholder="your@email.com"
-            required
-            autocomplete="email"
-            class="flex-1 px-6 py-4 rounded-full bg-white/10 border border-white/20 text-background placeholder-background/40 focus:outline-none focus:border-primary focus:bg-white/15 transition-all min-h-[52px]"
-          />
-          <button
-            type="submit"
-            id="signup-btn"
-            class="px-8 py-4 bg-primary rounded-full text-background font-semibold hover:bg-primary/90 transition-all duration-300 shadow-xl shadow-primary/20 whitespace-nowrap min-h-[52px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-on-surface"
-          >
-            Claim my free copy →
-          </button>
+        <!-- Early Access Signup Form -->
+        <form id="notify-form" class="flex flex-col gap-4 max-w-lg mx-auto" novalidate>
+          <input type="text" name="url" id="notify-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;" />
+
+          <!-- Email + Submit -->
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input
+              type="email"
+              name="email"
+              id="notify-email"
+              placeholder="your@email.com"
+              required
+              autocomplete="email"
+              class="flex-1 px-6 py-4 rounded-full bg-white/10 border border-white/20 text-background placeholder-background/40 focus:outline-none focus:border-primary focus:bg-white/15 transition-all min-h-[52px]"
+            />
+            <button
+              type="submit"
+              id="notify-btn"
+              class="px-8 py-4 bg-primary rounded-full text-background font-semibold hover:bg-primary/90 transition-all duration-300 shadow-xl shadow-primary/20 whitespace-nowrap min-h-[52px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-on-surface disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              Send me the download link →
+            </button>
+          </div>
+
+          <!-- Opt-in checkbox (DSGVO) -->
+          <label class="flex items-start gap-3 cursor-pointer text-left group">
+            <input
+              type="checkbox"
+              id="notify-consent"
+              name="consent"
+              value="1"
+              class="mt-1 w-4 h-4 shrink-0 accent-primary cursor-pointer"
+            />
+            <span class="text-background/50 text-sm font-light leading-relaxed group-hover:text-background/70 transition-colors">
+              Yes, I'd like to receive the download link and occasional updates about Wordflow.
+              I can unsubscribe at any time. See our
+              <a href="/datenschutz" class="text-primary underline hover:no-underline">privacy policy</a>.
+            </span>
+          </label>
         </form>
 
-        <div id="signup-message" class="hidden text-center"></div>
+        <div id="notify-message" class="hidden text-center text-background/80 text-sm"></div>
 
         <p class="text-background/30 text-xs font-light">
-          Free for the first 100 · Mac only · No spam, ever
+          Mac only · Early Access · Free lifetime during this phase
         </p>
       </div>
     </section>
@@ -1770,7 +1789,7 @@ $csrf = csrf_token();
                     <span class="w-2 h-2 rounded-full bg-background/30"></span>
                     <span class="text-background/50">Early Bird</span>
                   </span>
-                  <span class="text-background/50">€15</span>
+                  <span class="text-background/50">€10</span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="flex items-center gap-2">
@@ -1911,6 +1930,67 @@ $csrf = csrf_token();
         });
       }, { threshold: 0.5 });
       statEls.forEach(el => statObserver.observe(el));
+    }
+
+    // ─── Early Access Signup (Email + Opt-in) ───────────────────────
+    const notifyForm    = document.getElementById('notify-form');
+    const notifyConsent = document.getElementById('notify-consent');
+    const notifyBtn     = document.getElementById('notify-btn');
+
+    // Enable submit only when checkbox is checked
+    if (notifyConsent && notifyBtn) {
+      notifyConsent.addEventListener('change', () => {
+        notifyBtn.disabled = !notifyConsent.checked;
+      });
+    }
+
+    if (notifyForm) {
+      notifyForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (document.getElementById('notify-honeypot').value) return;
+
+        const email   = document.getElementById('notify-email').value.trim();
+        const consent = notifyConsent && notifyConsent.checked ? '1' : '0';
+        if (!email || consent !== '1') return;
+
+        const btn    = document.getElementById('notify-btn');
+        const msgBox = document.getElementById('notify-message');
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+
+        try {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+          const res = await fetch('/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRF-Token': csrfToken,
+            },
+            body: 'email=' + encodeURIComponent(email) + '&consent=' + consent,
+          });
+          const data = await res.json();
+
+          if (data.status === 'success' || data.status === 'already_registered') {
+            notifyForm.classList.add('hidden');
+            msgBox.classList.remove('hidden');
+            msgBox.innerHTML =
+              '<div class="bg-primary/20 border border-primary/30 rounded-2xl px-8 py-6 text-background space-y-2">'
+              + '<p class="text-2xl font-headline italic">Check your inbox! 🎙</p>'
+              + '<p class="text-background/70">We\'ve sent your download link to <strong>' + email + '</strong>. See you on the other side.</p>'
+              + '</div>';
+          } else {
+            msgBox.classList.remove('hidden');
+            msgBox.innerHTML = '<p class="text-background/60">' + (data.error || 'Something went wrong. Try again.') + '</p>';
+            btn.disabled = !notifyConsent.checked;
+            btn.textContent = 'Send me the download link →';
+          }
+        } catch (err) {
+          btn.disabled = !notifyConsent.checked;
+          btn.textContent = 'Send me the download link →';
+          msgBox.classList.remove('hidden');
+          msgBox.innerHTML = '<p class="text-red-400">Network error — please try again.</p>';
+        }
+      });
     }
 
     // ─── Early Access Signup ────────────────────────────────────────

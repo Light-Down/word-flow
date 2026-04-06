@@ -5,9 +5,9 @@ set -e
 # Arguments
 MARKETING_VERSION=${1:-"1.0"}
 PROJECT_VERSION=${2:-"1"}
+BUNDLE_ID=${3:-"com.markolenberg.Wordflow"}
 
 APP_NAME="Wordflow"
-BUNDLE_ID="com.markolenberg.Wordflow"
 SCHEME="wordflow"
 SOURCE_DIR="Wordflow"
 BUILD_DIR=".build/release"

@@ -33,7 +33,7 @@ class TranscriptionService {
         
         let provider = UserDefaults.standard.string(forKey: "transcriptionProvider") ?? "Groq"
         let model = (provider == "GroqTurbo") ? "whisper-large-v3-turbo" : "whisper-large-v3"
-        let rawLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "DE"
+        let rawLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "EN"
         let normalizedLanguage = rawLanguage.uppercased()
         let whisperLanguage: String? = {
             switch normalizedLanguage {

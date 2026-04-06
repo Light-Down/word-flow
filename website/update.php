@@ -5,31 +5,12 @@
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>Update Available — Wordflow</title>
+  <!-- Preload critical fonts -->
+  <link rel="preload" href="/assets/fonts/1ab1ad55.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/78bd98e5.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Fonts & Styles -->
   <link rel="stylesheet" href="/assets/fonts.css" />
-  <script src="/assets/tailwind.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#D2691E",
-            "on-primary": "#FFFFFF",
-            "background": "#FDFBF7",
-            "surface": "#F7F3EE",
-            "on-surface": "#1A1A1A",
-            "on-surface-variant": "#4A4A4A",
-            "outline": "#D1CDC7",
-            "surface-container": "#F2EDE6",
-          },
-          fontFamily: {
-            "headline": ["Newsreader", "serif"],
-            "body": ["Inter", "sans-serif"],
-          },
-        },
-      },
-    }
-  </script>
+  <link rel="stylesheet" href="/assets/app.css" />
 </head>
 <body class="bg-background text-on-surface min-h-screen flex flex-col items-center justify-center px-6">
 

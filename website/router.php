@@ -23,8 +23,10 @@ $routes = [
     'feedback'    => 'feedback.php',
     'contact'     => 'contact.php',
     'signup'      => 'signup.php',
+    'notify'      => 'notify.php',
     'download'    => 'download.php',
     'changelog'   => 'changelog.php',
+    'roadmap'     => 'roadmap.php',
     'update'      => 'update.php',
 ];
 

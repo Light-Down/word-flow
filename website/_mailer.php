@@ -1,7 +1,9 @@
 <?php
 // Internal SMTP mailer — not directly accessible via web (blocked in .htaccess)
 
-function smtp_send(string $to, string $toName, string $subject, string $html, string $text = ''): bool {
+// smtp_send with optional file attachment
+// $attachment = ['path' => '/abs/path', 'name' => 'file.zip', 'mime' => 'application/zip']
+function smtp_send(string $to, string $toName, string $subject, string $html, string $text = '', array $attachment = []): bool {
     $ctx = stream_context_create([
         'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
     ]);
@@ -33,32 +35,71 @@ function smtp_send(string $to, string $toName, string $subject, string $html, st
     $w('RCPT TO:<' . $to . '>');        $r();
     $w('DATA');                          $r();
 
-    $boundary = md5(uniqid('wf', true));
-    $text     = $text ?: strip_tags($html);
-
+    $text           = $text ?: strip_tags($html);
     $encodedName    = '=?UTF-8?B?' . base64_encode(SMTP_FROM_NAME) . '?=';
     $encodedToName  = $toName ? '=?UTF-8?B?' . base64_encode($toName) . '?=' : $to;
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
 
-    $msg = implode("\r\n", [
-        "From: $encodedName <" . SMTP_FROM . ">",
-        "To: $encodedToName <$to>",
-        "Subject: $encodedSubject",
-        "MIME-Version: 1.0",
-        "Content-Type: multipart/alternative; boundary=\"$boundary\"",
-        "",
-        "--$boundary",
-        "Content-Type: text/plain; charset=utf-8",
-        "Content-Transfer-Encoding: base64",
-        "",
-        chunk_split(base64_encode($text)),
-        "--$boundary",
-        "Content-Type: text/html; charset=utf-8",
-        "Content-Transfer-Encoding: base64",
-        "",
-        chunk_split(base64_encode($html)),
-        "--$boundary--",
-    ]);
+    $altBoundary  = 'alt_' . md5(uniqid('wf', true));
+
+    if (!empty($attachment) && file_exists($attachment['path'])) {
+        // multipart/mixed wrapper
+        $mixBoundary = 'mix_' . md5(uniqid('wf', true));
+        $attData     = chunk_split(base64_encode(file_get_contents($attachment['path'])));
+        $attName     = '=?UTF-8?B?' . base64_encode($attachment['name']) . '?=';
+        $attMime     = $attachment['mime'] ?? 'application/octet-stream';
+
+        $msg = implode("\r\n", [
+            "From: $encodedName <" . SMTP_FROM . ">",
+            "To: $encodedToName <$to>",
+            "Subject: $encodedSubject",
+            "MIME-Version: 1.0",
+            "Content-Type: multipart/mixed; boundary=\"$mixBoundary\"",
+            "",
+            "--$mixBoundary",
+            "Content-Type: multipart/alternative; boundary=\"$altBoundary\"",
+            "",
+            "--$altBoundary",
+            "Content-Type: text/plain; charset=utf-8",
+            "Content-Transfer-Encoding: base64",
+            "",
+            chunk_split(base64_encode($text)),
+            "--$altBoundary",
+            "Content-Type: text/html; charset=utf-8",
+            "Content-Transfer-Encoding: base64",
+            "",
+            chunk_split(base64_encode($html)),
+            "--$altBoundary--",
+            "",
+            "--$mixBoundary",
+            "Content-Type: $attMime; name=\"$attName\"",
+            "Content-Transfer-Encoding: base64",
+            "Content-Disposition: attachment; filename=\"$attName\"",
+            "",
+            $attData,
+            "--$mixBoundary--",
+        ]);
+    } else {
+        $msg = implode("\r\n", [
+            "From: $encodedName <" . SMTP_FROM . ">",
+            "To: $encodedToName <$to>",
+            "Subject: $encodedSubject",
+            "MIME-Version: 1.0",
+            "Content-Type: multipart/alternative; boundary=\"$altBoundary\"",
+            "",
+            "--$altBoundary",
+            "Content-Type: text/plain; charset=utf-8",
+            "Content-Transfer-Encoding: base64",
+            "",
+            chunk_split(base64_encode($text)),
+            "--$altBoundary",
+            "Content-Type: text/html; charset=utf-8",
+            "Content-Transfer-Encoding: base64",
+            "",
+            chunk_split(base64_encode($html)),
+            "--$altBoundary--",
+        ]);
+    }
 
     fwrite($socket, $msg . "\r\n.\r\n");
     $r();

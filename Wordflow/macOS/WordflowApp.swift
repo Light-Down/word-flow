@@ -55,7 +55,7 @@ struct WordflowApp: App {
         }
 
         image.isTemplate = true
-        image.size = NSSize(width: 22, height: 22)
+        image.size = NSSize(width: 18, height: 18)
         return image
     }
     
@@ -179,6 +179,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Silent update checks: once on launch and then every 7 days while app stays open.
         setupAutomaticUpdateChecks()
+
+        // Supabase: Session + Trial + Update in einem Call
+        Task {
+            await SupabaseService.shared.checkSession()
+            LicenseManager.shared.checkAndShowPaywallIfNeeded()
+        }
+    }
+
+    // Deep Link Handler: wordflow://activate#access_token=...
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first, url.scheme == "wordflow" else { return }
+        LogManager.shared.log("🔗 Deep Link empfangen: \(url)")
+        Task {
+            await SupabaseService.shared.handleDeepLink(url: url)
+            LicenseManager.shared.checkAndShowPaywallIfNeeded()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -482,7 +498,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handlePipelineError(_ error: Error, stage: AppErrorStage, appState: AppState) async {
         let mappedError = AppErrorMapper.map(error: error, stage: stage)
-        let appLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "DE"
+        let appLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "EN"
         let notificationTitle = appLanguage.uppercased() == "EN" ? "Wordflow Error" : "Wordflow Fehler"
         let technicalPreview = String(mappedError.technicalMessage.prefix(200))
 
@@ -518,14 +534,56 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 // MARK: - Menu Bar View (Premium Design)
 struct MenuBarView: View {
     @EnvironmentObject var appState: AppState
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("autoPasteEnabled") private var autoPasteEnabled = true
     @AppStorage("soundsEnabled") private var soundsEnabled = true
     @ObservedObject var promptManager = PromptManager.shared
-    
+    @ObservedObject private var supabase = SupabaseService.shared
+    @ObservedObject private var updateChecker = UpdateChecker.shared
+
     var body: some View {
+        // ── Not logged in → show login screen ──────────────────────
+        if !supabase.isLoggedIn {
+            LoginView()
+                .frame(width: 340)
+        } else {
+            mainContent
+        }
+    }
+
+    private var mainContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
+
+                // ── Update banner ───────────────────────────────────
+                if supabase.hasUpdateAvailable,
+                   let info = supabase.latestVersionInfo {
+                    Button {
+                        if let url = URL(string: info.url) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .foregroundColor(.white)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(appLanguage == "EN" ? "Update available — v\(info.version)" : "Update verfügbar — v\(info.version)")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(.white)
+                                Text(appLanguage == "EN" ? "Tap to download" : "Tippen zum Herunterladen")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.75))
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(WordflowTheme.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 HStack(spacing: 10) {
                     Image(systemName: "waveform.circle.fill")
                         .font(.system(size: 16, weight: .semibold))

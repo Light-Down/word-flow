@@ -70,19 +70,30 @@
       <section>
         <h2 class="font-semibold text-on-surface text-sm uppercase tracking-widest mb-3">2. What data we collect and why</h2>
 
-        <h3 class="font-medium text-on-surface mt-5 mb-2">2.1 Early access sign-ups</h3>
-        <p>When you submit your email address to join the early access list, we collect:</p>
+        <h3 class="font-medium text-on-surface mt-5 mb-2">2.1 Account &amp; authentication</h3>
+        <p>To use Wordflow, you sign in with your email address via a Magic Link (passwordless login). When you do so, we collect:</p>
         <ul class="list-disc list-inside mt-2 space-y-1 ml-2">
           <li>Your email address</li>
-          <li>The date and time of sign-up</li>
-          <li>Whether you received a free copy or were placed on the waitlist</li>
+          <li>Date and time of account creation and last login</li>
+          <li>Trial start date and licence status (trial / purchased)</li>
+          <li>Device information: device name, anonymised device ID, app version, macOS version, last seen timestamp</li>
         </ul>
-        <p class="mt-3"><strong>Purpose:</strong> To send you your download link and product updates.<br />
-        <strong>Legal basis:</strong> Art. 6(1)(b) GDPR — necessary to fulfil your request.<br />
-        <strong>Retention:</strong> Until you unsubscribe or request deletion.</p>
+        <p class="mt-3"><strong>Purpose:</strong> To authenticate you, manage your trial period, and deliver licence status to the app.<br />
+        <strong>Legal basis:</strong> Art. 6(1)(b) GDPR — necessary to provide the service you requested.<br />
+        <strong>Retention:</strong> For the duration of your account. You can request deletion at any time.</p>
 
-        <h3 class="font-medium text-on-surface mt-5 mb-2">2.2 Feedback submissions</h3>
-        <p>If you submit feedback (via the website or the Wordflow app), we collect:</p>
+        <h3 class="font-medium text-on-surface mt-5 mb-2">2.2 Purchase data</h3>
+        <p>If you purchase a Wordflow licence, the payment is processed by Gumroad (see Section 3). We receive a confirmation from Gumroad containing:</p>
+        <ul class="list-disc list-inside mt-2 space-y-1 ml-2">
+          <li>Your email address (used to activate your licence)</li>
+          <li>Purchase confirmation and licence type</li>
+        </ul>
+        <p class="mt-3"><strong>Purpose:</strong> To activate your licence and link it to your account.<br />
+        <strong>Legal basis:</strong> Art. 6(1)(b) GDPR — necessary to fulfil the purchase contract.<br />
+        <strong>Retention:</strong> As required by German tax law (§ 147 AO), typically 10 years.</p>
+
+        <h3 class="font-medium text-on-surface mt-5 mb-2">2.3 Feedback submissions</h3>
+        <p>If you submit feedback via the app or website, we may collect:</p>
         <ul class="list-disc list-inside mt-2 space-y-1 ml-2">
           <li>Your feedback message</li>
           <li>Optionally: your email address (if you choose to provide it)</li>
@@ -92,24 +103,28 @@
         <strong>Legal basis:</strong> Art. 6(1)(f) GDPR — legitimate interest in improving the service.<br />
         <strong>Retention:</strong> Until no longer needed for product development.</p>
 
-        <h3 class="font-medium text-on-surface mt-5 mb-2">2.3 Data we do NOT collect</h3>
+        <h3 class="font-medium text-on-surface mt-5 mb-2">2.4 Data we do NOT collect</h3>
         <ul class="list-disc list-inside mt-2 space-y-1 ml-2">
           <li>No cookies are set on this website</li>
-          <li>No analytics or tracking tools are used</li>
-          <li>No audio recordings — your voice data goes directly from your device to Groq's API via your own API key. Wordflow has no backend that processes your audio or transcriptions.</li>
+          <li>No analytics or tracking tools are used on this website</li>
+          <li>No audio recordings — your voice data goes directly from your device to Groq's API via your own API key. Wordflow's backend only handles authentication and licence status, never audio or transcription content.</li>
         </ul>
       </section>
 
       <section>
         <h2 class="font-semibold text-on-surface text-sm uppercase tracking-widest mb-3">3. Third-party services</h2>
 
-        <h3 class="font-medium text-on-surface mt-5 mb-2">Brevo (email delivery)</h3>
-        <p>We use Brevo (Sendinblue SAS, 7 rue de Madrid, 75008 Paris, France) to manage our email list and send confirmation emails. Your email address is transferred to and stored by Brevo.</p>
-        <p class="mt-2">Brevo's privacy policy: <a href="https://www.brevo.com/legal/privacypolicy/" class="text-primary hover:underline" target="_blank" rel="noopener">brevo.com/legal/privacypolicy</a></p>
-        <p class="mt-2">A data processing agreement (DPA) is in place with Brevo as required by Art. 28 GDPR.</p>
+        <h3 class="font-medium text-on-surface mt-5 mb-2">Supabase (authentication &amp; backend)</h3>
+        <p>We use Supabase (Supabase Inc., 970 Toa Payoh North, Singapore) to manage user accounts, send Magic Link login emails, and store licence data. Your email address and licence information are stored on Supabase's infrastructure, hosted in the EU (Frankfurt, AWS eu-central-1).</p>
+        <p class="mt-2">Supabase's privacy policy: <a href="https://supabase.com/privacy" class="text-primary hover:underline" target="_blank" rel="noopener">supabase.com/privacy</a></p>
+        <p class="mt-2">A data processing agreement (DPA) is in place with Supabase as required by Art. 28 GDPR.</p>
+
+        <h3 class="font-medium text-on-surface mt-5 mb-2">Gumroad (payment processing)</h3>
+        <p>Payments for the Wordflow licence are processed by Gumroad (Gumroad, Inc., 548 Market Street, Suite 72906, San Francisco, CA 94104, USA). Gumroad acts as the Merchant of Record. Your payment details are handled exclusively by Gumroad — we do not receive or store your credit card or bank information.</p>
+        <p class="mt-2">Gumroad's privacy policy: <a href="https://gumroad.com/privacy" class="text-primary hover:underline" target="_blank" rel="noopener">gumroad.com/privacy</a></p>
 
         <h3 class="font-medium text-on-surface mt-5 mb-2">Groq (in-app, not this website)</h3>
-        <p>The Wordflow app uses the Groq API for transcription and text processing. This connection is established using <em>your own</em> Groq API key — no data passes through Wordflow's servers. Groq's privacy policy applies directly between you and Groq: <a href="https://groq.com/privacy-policy/" class="text-primary hover:underline" target="_blank" rel="noopener">groq.com/privacy-policy</a></p>
+        <p>The Wordflow app uses the Groq API for transcription and text processing. This connection is established using <em>your own</em> Groq API key — no audio or transcription data passes through Wordflow's servers. Groq's privacy policy applies directly between you and Groq: <a href="https://groq.com/privacy-policy/" class="text-primary hover:underline" target="_blank" rel="noopener">groq.com/privacy-policy</a></p>
 
         <h3 class="font-medium text-on-surface mt-5 mb-2">Google Fonts &amp; CDN resources</h3>
         <p>This website loads fonts from Google Fonts and a Tailwind CSS CDN. These requests may transmit your IP address to Google and Tailwind's CDN provider. We plan to self-host these resources in a future update to eliminate this transfer.</p>
@@ -134,7 +149,7 @@
 
       <section>
         <h2 class="font-semibold text-on-surface text-sm uppercase tracking-widest mb-3">5. Data security</h2>
-        <p>We use technical and organisational measures to protect your data against unauthorised access, loss, or misuse. Our servers are hosted by Hostinger, which provides standard security measures for shared hosting environments.</p>
+        <p>We use technical and organisational measures to protect your data against unauthorised access, loss, or misuse. Authentication data and licence information are stored on Supabase's infrastructure in the EU (Frankfurt). Access to user data is protected by row-level security policies and JWT-based authentication. No passwords are stored — login is exclusively via one-time Magic Links sent to your email address.</p>
       </section>
 
       <section>

@@ -1,0 +1,19 @@
+# Database — NEVER commit or upload to server
+wordflow.db
+wordflow.db-wal
+wordflow.db-shm
+
+# Config with secrets
+config.php
+
+# DMG / release files
+files/dist/
+
+# macOS
+.DS_Store
+
+# Node / Tailwind build tools — nur lokal, NICHT auf Server hochladen
+node_modules/
+package-lock.json
+assets/tailwind-input.css
+tailwind.config.js

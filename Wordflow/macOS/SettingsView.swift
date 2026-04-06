@@ -37,7 +37,7 @@ struct SettingsWindowChromeConfigurator: NSViewRepresentable {
 
 struct SettingsView: View {
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("showWelcomeSheetOnSettingsOpen") private var showWelcomeSheetOnSettingsOpen = false
     @State private var hasCopiedInviteLink = false
     
@@ -310,7 +310,7 @@ struct SettingsRow<Content: View>: View {
 
 // MARK: - 1. General Settings
 struct GeneralSettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("groqAPIKey") private var apiKey = ""
     @State private var showingAPIKey = false
     @State private var showingGuide = false
@@ -2077,7 +2077,7 @@ struct GuideStepView: View {
 
 // MARK: - 2. AI Settings
 struct AISettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("transcriptionProvider") private var transcriptionProvider = "Groq"
     @AppStorage("enableTextCorrection") private var enableTextCorrection = false
     @AppStorage("correctionProvider") private var correctionProvider = "Groq"
@@ -2145,7 +2145,7 @@ struct AISettingsView: View {
 
 // MARK: - 3. Profile Settings
 struct ProfileSettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @ObservedObject var promptManager = PromptManager.shared
 
     var body: some View {
@@ -2187,7 +2187,7 @@ struct ProfileSettingsView: View {
 
 // MARK: - 4. Behavior Settings
 struct BehaviorSettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("autoPasteEnabled") private var autoPasteEnabled = true
     @AppStorage("soundsEnabled") private var soundsEnabled = true
     
@@ -2563,7 +2563,7 @@ struct BehaviorSettingsView: View {
 
 // MARK: - 4. System Settings
 struct SystemSettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @EnvironmentObject var appState: AppState
     @ObservedObject var updateChecker = UpdateChecker.shared
     @State private var hasAccessibility = AXIsProcessTrusted()
@@ -2701,13 +2701,42 @@ struct SystemSettingsView: View {
                 
                 SettingsCard(title: "Software Updates") {
                     SettingsRow(title: appLanguage == "EN" ? "Version" : "Version", showDivider: true) {
-                        Text("1.0 (Build 1)")
+                        Text({
+                            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+                            let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+                            return "\(version) (Build \(build))"
+                        }())
                             .foregroundColor(.secondary)
                     }
                     
                     SettingsRow(title: appLanguage == "EN" ? "Updates" : "Updates", showDivider: false) {
                         Button(appLanguage == "EN" ? "Check for Updates..." : "Nach Updates suchen...") {
-                            UpdateChecker.shared.checkForUpdates(userInitiated: true)
+                            Task {
+                                // 1. Supabase zuerst — frischer Session Check
+                                await SupabaseService.shared.checkSession()
+                                let supabase = SupabaseService.shared
+                                if supabase.hasUpdateAvailable, let info = supabase.latestVersionInfo {
+                                    // Update gefunden via Supabase
+                                    let isDE = (appLanguage == "DE")
+                                    let alert = NSAlert()
+                                    alert.icon = NSApplication.shared.applicationIconImage
+                                    alert.messageText = isDE ? "Wordflow \(info.version) ist verfügbar" : "Wordflow \(info.version) is available"
+                                    let notes = info.notes ?? ""
+                                    let base = isDE
+                                        ? "Das Update ist kostenlos.\n\nKlicke auf \"Jetzt herunterladen\", um das DMG zu laden. Ersetze danach die App in deinem Programme-Ordner."
+                                        : "This update is free.\n\nClick \"Download now\" to get the DMG. Then replace the app in your Applications folder."
+                                    alert.informativeText = notes.isEmpty ? base : "\(base)\n\n\(notes)"
+                                    alert.alertStyle = .informational
+                                    alert.addButton(withTitle: isDE ? "Jetzt herunterladen" : "Download now")
+                                    alert.addButton(withTitle: isDE ? "Später" : "Later")
+                                    if alert.runModal() == .alertFirstButtonReturn {
+                                        if let url = URL(string: info.url) { NSWorkspace.shared.open(url) }
+                                    }
+                                } else {
+                                    // 2. Fallback: version.json prüfen
+                                    UpdateChecker.shared.checkForUpdates(userInitiated: true)
+                                }
+                            }
                         }
                         .disabled(UpdateChecker.shared.isChecking)
                     }
@@ -2820,7 +2849,7 @@ struct SystemSettingsView: View {
 // MARK: - 5. Statistics View
 
 struct StatisticsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @ObservedObject var manager = StatisticsManager.shared
     @State private var timeRange: StatisticsManager.TimeRange = .week
     

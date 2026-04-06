@@ -32,7 +32,7 @@ class TextCorrectionService {
         let provider = UserDefaults.standard.string(forKey: "correctionProvider") ?? "Groq"
         
         // Sprache und Profil abrufen
-        let rawLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "DE"
+        let rawLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "EN"
         let language = rawLanguage.uppercased()
         let systemMessageContent = PromptManager.shared.getSystemPrompt(for: language)
         

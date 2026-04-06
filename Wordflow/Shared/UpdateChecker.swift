@@ -155,14 +155,27 @@ class UpdateChecker: ObservableObject {
     // MARK: - Alerts
     
     private func showUpdateAlert(info: UpdateInfo) {
+        let appLanguage = UserDefaults.standard.string(forKey: "appLanguage")?.uppercased() ?? "EN"
+        let isDE = appLanguage == "DE"
+
         let alert = NSAlert()
         applyCurrentAppIcon(to: alert)
-        alert.messageText = "Neue Version verfügbar: \(info.version)"
-        alert.informativeText = info.releaseNotes ?? "Eine neue Version von Wordflow steht zum Download bereit."
+
+        alert.messageText = isDE
+            ? "Wordflow \(info.version) ist verfügbar"
+            : "Wordflow \(info.version) is available"
+
+        let notes = info.releaseNotes ?? ""
+        let deBase = "Das Update ist kostenlos \u{2014} dein Kauf gilt fuer alle zukuenftigen Versionen.\n\nKlicke auf \"Jetzt herunterladen\", um das DMG zu laden. Ersetze danach einfach die App in deinem Programme-Ordner."
+        let enBase = "This update is free \u{2014} your purchase covers all future versions.\n\nClick \"Download now\" to get the DMG. Then replace the app in your Applications folder."
+        let deText = notes.isEmpty ? deBase : "\(deBase)\n\n\(notes)"
+        let enText = notes.isEmpty ? enBase : "\(enBase)\n\n\(notes)"
+        alert.informativeText = isDE ? deText : enText
+
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Update herunterladen")
-        alert.addButton(withTitle: "Später")
-        
+        alert.addButton(withTitle: isDE ? "Jetzt herunterladen" : "Download now")
+        alert.addButton(withTitle: isDE ? "Später" : "Later")
+
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
             NSWorkspace.shared.open(preferredUpdateURL(for: info))
@@ -170,14 +183,14 @@ class UpdateChecker: ObservableObject {
     }
 
     private func preferredUpdateURL(for info: UpdateInfo) -> URL {
-        if let explicitURL = normalizedURL(from: info.updateURL) {
-            return explicitURL
+        // Prefer direct download URL (DMG) — simpler for the user
+        if let directDownload = normalizedURL(from: info.downloadURL) {
+            return directDownload
         }
-
-        if let fallbackDownloadURL = normalizedURL(from: info.downloadURL) {
-            return fallbackDownloadURL
+        // Fall back to update page (word-flow.store/update)
+        if let updatePage = normalizedURL(from: info.updateURL) {
+            return updatePage
         }
-
         return defaultUpdateDestination
     }
 

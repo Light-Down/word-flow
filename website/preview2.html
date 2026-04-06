@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { background: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+  .box { width: 512px; height: 512px; border: 1px solid #555; background: #1a1a1a; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background Squircle -->
+      <rect width="1024" height="1024" rx="225" fill="#15161A" />
+
+      <!-- Group for W, let's skew the white bars -->
+      <!-- SkewX by 24 degrees. tan(24) = 0.44 -->
+      <g transform="translate(180, 200)">
+         <!-- White Bar 1 -->
+         <!-- Note: skewX(24) shifts top and bottom. Let's skew around its center or just top-left -->
+         <g transform="skewX(-24)">
+            <!-- Wait, if we use SVG skewX, we need to see which way it skews -->
+         </g>
+      </g>
+    </svg>
+  </div>
+</body>
+</html>

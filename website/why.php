@@ -1,44 +1,16 @@
-<?php require_once __DIR__ . "/security.php"; ?>
+<?php require_once __DIR__ . "/security.php"; csrf_token(); ?>
 <!DOCTYPE html>
 <html class="light" lang="en">
 
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>11 Reasons to Try Wordflow — Speak freely. Write brilliantly.</title>  <link rel="stylesheet" href="/assets/fonts.css" />
-  <script src="/assets/tailwind.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#D2691E",
-            "on-primary": "#FFFFFF",
-            "background": "#FDFBF7",
-            "surface": "#F7F3EE",
-            "on-surface": "#1A1A1A",
-            "on-surface-variant": "#4A4A4A",
-            "outline": "#D1CDC7",
-            "surface-container": "#F2EDE6",
-            "surface-container-high": "#EBE5DB",
-            "surface-container-low": "#FAF7F2",
-            "secondary": "#2C3E50",
-          },
-          fontFamily: {
-            "headline": ["Newsreader", "serif"],
-            "body": ["Inter", "sans-serif"],
-          },
-          borderRadius: {
-            "DEFAULT": "0.5rem",
-            "lg": "1rem",
-            "xl": "1.5rem",
-            "full": "9999px"
-          },
-        },
-      },
-    }
-  </script>
+  <title>11 Reasons to Try Wordflow — Speak freely. Write brilliantly.</title>  <!-- Preload critical fonts -->
+  <link rel="preload" href="/assets/fonts/1ab1ad55.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/78bd98e5.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Fonts & Styles -->
+  <link rel="stylesheet" href="/assets/fonts.css" />
+  <link rel="stylesheet" href="/assets/app.css" />
   <style>
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
@@ -100,6 +72,16 @@
     .cta-glow {
       box-shadow: 0 0 60px rgba(210, 105, 30, 0.15);
     }
+
+    /* ─── Fluid Typography ─── */
+    .fluid-h1  { font-size: clamp(2rem,   4vw + 1rem,   4.5rem); line-height: 1.05; }
+    .fluid-h2  { font-size: clamp(1.75rem, 3.5vw + 0.75rem, 3.75rem); line-height: 1.1; }
+    .fluid-h3  { font-size: clamp(1.25rem, 2vw + 0.5rem, 2rem); }
+    .fluid-lead{ font-size: clamp(1.0625rem, 1vw + 0.8rem, 1.375rem); }
+    .fluid-body{ font-size: clamp(1rem, 0.5vw + 0.875rem, 1.25rem); }
+
+    /* ─── Prevent horizontal overflow ─── */
+    body { overflow-x: hidden; }
   </style>
 </head>
 
@@ -110,25 +92,25 @@
   <!-- Nav -->
   <?php require __DIR__ . '/_nav.php'; ?>
 
-  <main class="pt-40 pb-32">
+  <main class="pt-32 md:pt-40 pb-16 md:pb-32">
 
     <!-- Hero -->
-    <section class="max-w-4xl mx-auto px-8 text-center mb-24">
-      <div class="hero-fade hd1 inline-flex items-center gap-3 bg-surface-container px-5 py-2 rounded-full border border-outline/30 mb-8">
+    <section class="max-w-4xl mx-auto px-5 md:px-8 text-center mb-12 md:mb-24">
+      <div class="hero-fade hd1 inline-flex items-center gap-3 bg-surface-container px-5 py-2 rounded-full border border-outline/30 mb-6 md:mb-8">
         <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
         <span class="text-xs uppercase tracking-[0.2em] text-on-surface-variant font-semibold">11 Reasons</span>
       </div>
-      <h1 class="hero-fade hd2 font-headline text-6xl md:text-7xl text-on-surface leading-[1.05] mb-8">
+      <h1 class="hero-fade hd2 font-headline fluid-h1 text-on-surface mb-6 md:mb-8">
         Why Wordflow <br /><span class="italic text-primary font-light">changes how you write.</span>
       </h1>
-      <p class="hero-fade hd3 text-xl text-on-surface-variant font-light leading-relaxed max-w-2xl mx-auto">
+      <p class="hero-fade hd3 fluid-lead text-on-surface-variant font-light leading-relaxed max-w-2xl mx-auto">
         Not another AI writing tool. Not another subscription. Just the fastest way to turn your spoken thoughts into exactly the right words — in any app, any tone, any context.
       </p>
     </section>
 
     <!-- 11 Reasons Grid -->
-    <section class="max-w-7xl mx-auto px-8">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <section class="max-w-7xl mx-auto px-5 md:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-6">
 
         <!-- Row 1: [01 wide] [02] -->
 
@@ -334,7 +316,7 @@
         <!-- Row 5: [11 full width] -->
 
         <!-- 11 — col-span-3 -->
-        <div class="reveal reason-card lg:col-span-3 bg-surface-container-high rounded-2xl p-12 border border-outline/20 flex flex-col md:flex-row gap-10 items-center" style="box-shadow: 0 4px 24px rgba(26,26,26,0.05);">
+        <div class="reveal reason-card lg:col-span-3 bg-surface-container-high rounded-2xl p-7 md:p-12 border border-outline/20 flex flex-col md:flex-row gap-8 md:gap-10 items-start md:items-center" style="box-shadow: 0 4px 24px rgba(26,26,26,0.05);">
           <div class="space-y-4 flex-1">
             <div class="flex items-center gap-4">
               <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -342,12 +324,12 @@
               </div>
               <span class="reason-number text-5xl">11</span>
             </div>
-            <h2 class="font-headline text-3xl text-on-surface">One workflow. Every context.</h2>
-            <p class="text-on-surface-variant font-light leading-relaxed max-w-2xl">
+            <h2 class="font-headline text-2xl md:text-3xl text-on-surface">One workflow. Every context.</h2>
+            <p class="fluid-body text-on-surface-variant font-light leading-relaxed max-w-2xl">
               Email reply, Slack message, meeting notes, code comment, late-night idea dump — one hotkey, one muscle memory, infinite use cases. You stop thinking about the tool and start thinking about the work.
             </p>
           </div>
-          <div class="flex flex-wrap gap-3 md:max-w-xs">
+          <div class="flex flex-wrap gap-2 md:gap-3 w-full md:max-w-xs">
             <span class="bg-background text-on-surface font-medium text-sm px-4 py-2 rounded-full border border-outline/30">Emails</span>
             <span class="bg-background text-on-surface font-medium text-sm px-4 py-2 rounded-full border border-outline/30">Slack messages</span>
             <span class="bg-background text-on-surface font-medium text-sm px-4 py-2 rounded-full border border-outline/30">Meeting notes</span>
@@ -361,16 +343,16 @@
     </section>
 
     <!-- CTA -->
-    <section class="max-w-3xl mx-auto px-8 mt-28 text-center">
-      <div class="reveal bg-on-surface rounded-3xl p-16 cta-glow space-y-8">
-        <h2 class="font-headline text-5xl text-background leading-[1.1]">
+    <section class="max-w-3xl mx-auto px-5 md:px-8 mt-16 md:mt-28 text-center">
+      <div class="reveal bg-on-surface rounded-3xl p-8 md:p-16 cta-glow space-y-6 md:space-y-8">
+        <h2 class="font-headline fluid-h2 text-background leading-[1.1]">
           Convinced? <span class="italic text-primary font-light">Good.</span>
         </h2>
-        <p class="text-background/60 font-light text-xl leading-relaxed">
+        <p class="fluid-lead text-background/60 font-light leading-relaxed">
           First 100 users get Wordflow free. No credit card, no catch.
         </p>
         <a href="/#early-access"
-          class="inline-flex items-center gap-3 px-10 py-5 bg-primary rounded-full text-background font-semibold hover:bg-primary/90 transition-all duration-300 shadow-xl shadow-primary/20 group">
+          class="flex sm:inline-flex items-center justify-center gap-3 px-8 py-4 md:px-10 md:py-5 bg-primary rounded-full text-background font-semibold hover:bg-primary/90 transition-all duration-300 shadow-xl shadow-primary/20 group whitespace-nowrap min-h-[52px]">
           Claim my free copy
           <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
         </a>

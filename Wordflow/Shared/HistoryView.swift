@@ -2,7 +2,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @EnvironmentObject var appState: AppState
-    @AppStorage("appLanguage") private var appLanguage = "DE"
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @State private var searchText = ""
     
     var filteredHistory: [TranscriptionEntry] {

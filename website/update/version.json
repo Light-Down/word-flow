@@ -1,5 +1,6 @@
 {
-    "version": "1.0.0",
+    "version": "1.1",
+    "downloadURL": "https://github.com/Light-Down/word-flow/releases/download/v0.1.0/Wordflow-0.1-early_access.dmg",
     "updateURL": "https://word-flow.store/update",
-    "releaseNotes": "First official release of Wordflow. Speech recognition via Groq, global hotkey, transcription history, and settings."
+    "releaseNotes": "Test update — checking the in-app update flow."
 }

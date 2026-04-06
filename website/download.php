@@ -57,38 +57,12 @@ $downloadUrl = '/download?token=' . $safeToken . '&get=1';
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>Download Wordflow</title>
+  <!-- Preload critical fonts -->
+  <link rel="preload" href="/assets/fonts/1ab1ad55.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/78bd98e5.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Fonts & Styles -->
   <link rel="stylesheet" href="/assets/fonts.css" />
-  <script src="/assets/tailwind.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#D2691E",
-            "on-primary": "#FFFFFF",
-            "background": "#FDFBF7",
-            "surface": "#F7F3EE",
-            "on-surface": "#1A1A1A",
-            "on-surface-variant": "#4A4A4A",
-            "outline": "#D1CDC7",
-            "surface-container": "#F2EDE6",
-            "surface-container-high": "#EBE5DB",
-          },
-          fontFamily: {
-            "headline": ["Newsreader", "serif"],
-            "body": ["Inter", "sans-serif"],
-          },
-          borderRadius: {
-            "DEFAULT": "0.5rem",
-            "lg": "1rem",
-            "xl": "1.5rem",
-            "full": "9999px"
-          },
-        },
-      },
-    }
-  </script>
+  <link rel="stylesheet" href="/assets/app.css" />
   <style>
     .glass-nav {
       backdrop-filter: blur(20px);
@@ -199,30 +173,19 @@ function show_error(string $message): void { ?>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Download — Wordflow</title>
+  <!-- Preload critical fonts -->
+  <link rel="preload" href="/assets/fonts/1ab1ad55.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/78bd98e5.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Fonts & Styles -->
   <link rel="stylesheet" href="/assets/fonts.css" />
-  <script src="/assets/tailwind.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#D2691E", "on-primary": "#FFFFFF",
-            "background": "#FDFBF7", "on-surface": "#1A1A1A",
-            "on-surface-variant": "#4A4A4A", "outline": "#D1CDC7",
-          },
-          fontFamily: { "headline": ["Newsreader", "serif"], "body": ["Inter", "sans-serif"] },
-        },
-      },
-    }
-  </script>
+  <link rel="stylesheet" href="/assets/app.css" />
 </head>
 <body class="bg-background flex items-center justify-center min-h-screen px-6">
   <div class="text-center max-w-sm">
     <a href="/" class="font-headline italic text-on-surface-variant text-3xl block mb-12">Wordflow.</a>
     <h1 class="font-headline text-3xl text-on-surface mb-4">Oops.</h1>
     <p class="font-body text-on-surface-variant leading-relaxed mb-8"><?= htmlspecialchars($message) ?></p>
-    <a href="/" class="font-body text-sm text-primary hover:opacity-80 transition-opacity">Back to wordflow.app</a>
+    <a href="/" class="font-body text-sm text-primary hover:opacity-80 transition-opacity">Back to word-flow.store</a>
   </div>
 </body>
 </html>

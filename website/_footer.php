@@ -31,6 +31,7 @@ $_footerCsrf = csrf_token();
         <a class="font-body text-sm text-on-surface-variant hover:text-primary transition-colors" href="/#pricing">Pricing</a>
         <a class="font-body text-sm text-on-surface-variant hover:text-primary transition-colors" href="/about/">About</a>
         <a class="font-body text-sm text-on-surface-variant hover:text-primary transition-colors" href="/changelog/">Changelog</a>
+        <a class="font-body text-sm text-on-surface-variant hover:text-primary transition-colors" href="/roadmap/">What's Cooking?</a>
       </nav>
     </div>
 
@@ -54,7 +55,7 @@ $_footerCsrf = csrf_token();
   <div class="border-t border-outline/20">
     <div class="max-w-7xl mx-auto px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-3">
       <p class="font-body text-xs text-on-surface-variant opacity-60">© 2026 Wordflow · Quietly Crafted in Frankfurt.</p>
-      <p class="font-body text-xs text-on-surface-variant opacity-60">Built for Mac · Powered by Groq Whisper</p>
+      <a href="/roadmap/" class="font-body text-xs text-on-surface-variant opacity-40 hover:opacity-80 transition-opacity hover:text-primary">🍳 What's Cooking?</a>
     </div>
   </div>
 
