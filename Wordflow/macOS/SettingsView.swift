@@ -159,7 +159,7 @@ struct GeneralSettingsView: View {
                         Spacer()
                         Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(WordflowTheme.onSurfaceVariant.opacity(0.8))
                     }.padding(.vertical, 12).contentShape(Rectangle()) }.buttonStyle(.plain) }
-            Section { Picker(appLanguage == "EN" ? "Language:" : "Sprache:", selection: $appLanguage) { Text("Deutsch").tag("DE"); Text("English").tag("EN") }.pickerStyle(.menu).frame(width: 260) }
+            Section { HStack { Text(appLanguage == "EN" ? "Language:" : "Sprache:"); Spacer(); Picker("", selection: $appLanguage) { Text("Deutsch").tag("DE"); Text("English").tag("EN") }.labelsHidden().pickerStyle(.menu).frame(width: 160) } }
             Section(appLanguage == "EN" ? "Automation" : "Automatisierung") { Toggle(appLanguage == "EN" ? "Auto-Paste Text" : "Text automatisch einfügen", isOn: $autoPasteEnabled).toggleStyle(.switch); Toggle(appLanguage == "EN" ? "Play Sound Effects" : "Soundeffekte abspielen", isOn: $soundsEnabled).toggleStyle(.switch) }
             Section {
                 VStack(alignment: .leading, spacing: 12) {
@@ -170,7 +170,7 @@ struct GeneralSettingsView: View {
                             }.padding(.horizontal, 16).padding(.vertical, 8).background(isRecordingHotkey ? Color.red.opacity(0.1) : WordflowTheme.primary.opacity(0.1)).foregroundColor(isRecordingHotkey ? .red : WordflowTheme.primary).clipShape(.rect(cornerRadius: 8, style: .continuous))
                         }.buttonStyle(.plain)
                         HStack(spacing: 8) { Text(appLanguage == "EN" ? "or" : "oder").font(.system(size: 13)).foregroundStyle(.secondary).padding(.horizontal, 4)
-                            presetButton(label: "Fn + ⇧", modifiers: [.shift], includeFn: true)
+                            presetButton(label: "Fn", modifiers: [], includeFn: true)
                             presetButton(label: "⇧ + ⌥", modifiers: [.shift, .option])
                             presetButton(label: "⇧ + ⌃", modifiers: [.shift, .control])
                             presetButton(label: "⇧ + ⌘", modifiers: [.shift, .command])
@@ -1809,8 +1809,8 @@ struct SystemSettingsView: View {
                 Link(destination: URL(string: "https://console.groq.com")!) { Text(appLanguage == "EN" ? "Get free API Key →" : "Kostenlosen API Key holen →").font(.system(size: 12)).foregroundStyle(WordflowTheme.primary) }.padding(.leading, 2)
             } header: { Text(appLanguage == "EN" ? "API Configuration" : "API Konfiguration") } footer: { Text(appLanguage == "EN" ? "We securely store your API keys locally on your Mac." : "API Keys werden nur lokal auf deinem Mac gespeichert.").font(.footnote).foregroundStyle(.secondary) }
             
-            Section { Picker(appLanguage == "EN" ? "Transcription" : "Transkription", selection: $transcriptionModel) { Text("Whisper Large V3 Turbo").tag("whisper-large-v3-turbo"); Text("Whisper Large V3").tag("whisper-large-v3") }.pickerStyle(.menu).frame(width: 320)
-                Picker(appLanguage == "EN" ? "Text Correction" : "Textkorrektur", selection: $textCorrectionModel) { Text("Llama 3.1 (8B)").tag("llama-3.1-8b-instant"); Text("Llama 3.3 (70B)").tag("llama-3.3-70b-versatile"); Text("Llama 3.2 (3B)").tag("llama-3.2-3b-preview"); Text("Llama 4 Scout").tag("llama-4-scout"); Text("Mixtral (8x7b)").tag("mixtral-8x7b-32768") }.pickerStyle(.menu).frame(width: 320)
+            Section { HStack { Text(appLanguage == "EN" ? "Transcription" : "Transkription"); Spacer(); Picker("", selection: $transcriptionModel) { Text("Whisper Large V3 Turbo").tag("whisper-large-v3-turbo"); Text("Whisper Large V3").tag("whisper-large-v3") }.labelsHidden().pickerStyle(.menu).frame(width: 240) }
+                HStack { Text(appLanguage == "EN" ? "Text Correction" : "Textkorrektur"); Spacer(); Picker("", selection: $textCorrectionModel) { Text("Llama 3.1 (8B)").tag("llama-3.1-8b-instant"); Text("Llama 3.3 (70B)").tag("llama-3.3-70b-versatile"); Text("Llama 3.2 (3B)").tag("llama-3.2-3b-preview"); Text("Llama 4 Scout").tag("llama-4-scout"); Text("Mixtral (8x7b)").tag("mixtral-8x7b-32768") }.labelsHidden().pickerStyle(.menu).frame(width: 240) }
             } header: { Text(appLanguage == "EN" ? "AI Models" : "KI-Modelle") } footer: { Text(appLanguage == "EN" ? "Choose models that balance speed and accuracy." : "Wähle Modelle, Geschwindigkeit und Genauigkeit im Gleichgewicht halten.").font(.footnote).foregroundStyle(.secondary) }
             
             Section(appLanguage == "EN" ? "Permissions" : "Berechtigungen") { HStack { Text(appLanguage == "EN" ? "Accessibility Access" : "Bedienungshilfen-Zugriff"); Spacer()
@@ -1837,11 +1837,14 @@ struct StatisticsView: View {
     var body: some View {
         Form {
             Section(appLanguage == "EN" ? "Time Range" : "Zeitraum") {
-                Picker(appLanguage == "EN" ? "Period:" : "Zeitraum:", selection: $timeRange) {
-                    Text(appLanguage == "EN" ? "1 Week" : "1 Woche").tag(StatisticsManager.TimeRange.week)
-                    Text(appLanguage == "EN" ? "1 Month" : "1 Monat").tag(StatisticsManager.TimeRange.month)
-                    Text(appLanguage == "EN" ? "1 Year" : "1 Jahr").tag(StatisticsManager.TimeRange.year)
-                    Text(appLanguage == "EN" ? "All Time" : "Gesamt").tag(StatisticsManager.TimeRange.all)
+                HStack { Text(appLanguage == "EN" ? "Period:" : "Zeitraum:")
+                    Spacer()
+                    Picker("", selection: $timeRange) {
+                        Text(appLanguage == "EN" ? "1 Week" : "1 Woche").tag(StatisticsManager.TimeRange.week)
+                        Text(appLanguage == "EN" ? "1 Month" : "1 Monat").tag(StatisticsManager.TimeRange.month)
+                        Text(appLanguage == "EN" ? "1 Year" : "1 Jahr").tag(StatisticsManager.TimeRange.year)
+                        Text(appLanguage == "EN" ? "All Time" : "Gesamt").tag(StatisticsManager.TimeRange.all)
+                    }.labelsHidden().pickerStyle(.menu).frame(width: 140)
                 }
                 .pickerStyle(.menu)
                 .frame(width: 260)
