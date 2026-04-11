@@ -255,6 +255,12 @@ class HotkeyManager {
                 if keyCode == 49 && manager.config.isFlagsBased && manager.isRecording && !manager.isLocked {
                     let isHotkeyHeld = manager.config.useFnKey ? manager.fnKeyPressed : manager.modifierComboActive
                     if isHotkeyHeld {
+                        // Trigger lock directly here (NSEvent monitor won't see this event)
+                        DispatchQueue.main.async {
+                            print("🔒 Aufnahme GELOCKT (\(manager.config.displayString) + Leertaste)")
+                            manager.isLocked = true
+                            manager.onLockChange?(true)
+                        }
                         // Suppress the Space so it doesn't get inserted
                         return nil
                     }
@@ -413,18 +419,9 @@ class HotkeyManager {
             return
         }
         
-        // Handle Space key for locking in Fn mode AND modifier-only mode
-        // (Space is suppressed by CGEventTap so no character gets inserted)
-        if config.isFlagsBased && event.keyCode == 49 && event.type == .keyDown && !event.isARepeat {
-            let isHotkeyHeld = config.useFnKey ? fnKeyPressed : modifierComboActive
-            if isRecording && !isLocked && isHotkeyHeld {
-                print("🔒 Aufnahme GELOCKT (\(config.displayString) + Leertaste)")
-                isLocked = true
-                onLockChange?(true)
-                return
-            }
-        }
-        
+        // Note: Space-lock is handled directly in the CGEventTap callback (startEventTap)
+        // to ensure the Space keydown is suppressed before reaching any text field.
+
         // Skip rest if we're in flags-based mode (Fn or modifier-only)
         if config.isFlagsBased { return }
         
