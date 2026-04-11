@@ -190,6 +190,7 @@ struct WelcomeOnboardingSheet: View {
     @AppStorage("hasCompletedInitialLanguageChoice") private var hasCompletedInitialLanguageChoice = false
     @AppStorage("showWelcomeSheetOnSettingsOpen") private var showWelcomeSheetOnSettingsOpen = false
     @AppStorage("quickSetupResumeAfterRestart") private var quickSetupResumeAfterRestart = false
+    @AppStorage("quickSetupLaunchStep") private var quickSetupLaunchStep = ""
 
     @State private var currentStep: QuickSetupStep = .language
     @State private var apiValidationState: APIValidationState = .idle
@@ -197,6 +198,7 @@ struct WelcomeOnboardingSheet: View {
     @State private var hasAccessibilityPermission = AXIsProcessTrusted()
     @State private var microphoneStatus = AVCaptureDevice.authorizationStatus(for: .audio)
     @State private var isFinishingForManualRestart = false
+    @State private var restartErrorMessage = ""
     @State private var currentHotkeyConfig = HotkeyManager.loadConfig()
     @State private var isRecordingNewHotkey = false
     @State private var testFieldText = ""
@@ -318,10 +320,20 @@ struct WelcomeOnboardingSheet: View {
             refreshPermissionState()
             selectedLanguage = (appLanguage == "DE" || appLanguage == "EN") ? appLanguage : "EN"
 
-            if quickSetupResumeAfterRestart {
+            LogManager.shared.log("🧭 Quick setup onAppear: launchStep='\(quickSetupLaunchStep)', resumeFlag=\(quickSetupResumeAfterRestart)")
+
+            if quickSetupLaunchStep == "hotkey" {
+                currentStep = .hotkey
+                quickSetupLaunchStep = ""
+                quickSetupResumeAfterRestart = false
+                showWelcomeSheetOnSettingsOpen = false
+                hasCompletedInitialLanguageChoice = true
+                hasSelectedLanguageInStep = true
+            } else if quickSetupResumeAfterRestart {
+                // Backward-compatibility fallback for stale flags from older builds.
                 currentStep = .hotkey
                 quickSetupResumeAfterRestart = false
-                showWelcomeSheetOnSettingsOpen = true
+                showWelcomeSheetOnSettingsOpen = false
                 hasCompletedInitialLanguageChoice = true
                 hasSelectedLanguageInStep = true
             } else if hasCompletedInitialLanguageChoice {
@@ -815,6 +827,12 @@ struct WelcomeOnboardingSheet: View {
                         .foregroundColor(.secondary)
                 }
             }
+
+            if !restartErrorMessage.isEmpty {
+                Text(restartErrorMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
         }
     }
 
@@ -1306,6 +1324,41 @@ struct WelcomeOnboardingSheet: View {
             )
 
             VStack(alignment: .leading, spacing: 10) {
+                Text(appLanguage == "EN" ? "Available Profiles" : "Verfuegbare Profile")
+                    .font(.system(size: 13, weight: .semibold, design: .serif))
+                    .foregroundColor(.secondary)
+
+                VStack(spacing: 0) {
+                    doneProfileRow(
+                        title: "Smart Casual",
+                        body: appLanguage == "EN"
+                            ? "Keeps your natural vibe, removes stutters, and fixes punctuation. Great for everyday messages."
+                            : "Behaelt deinen natuerlichen Vibe bei, entfernt Stotterer und korrigiert die Zeichensetzung. Perfekt fuer alltaegliche Nachrichten.",
+                        showDivider: true
+                    )
+
+                    doneProfileRow(
+                        title: "Smart Business",
+                        body: appLanguage == "EN"
+                            ? "Turns spoken thoughts into clear, logical text suitable for business contexts."
+                            : "Verwandelt gesprochene Gedanken in klaren, logischen Text. Ideal fuer das Business-Umfeld.",
+                        showDivider: true
+                    )
+
+                    doneProfileRow(
+                        title: "Professional",
+                        body: appLanguage == "EN"
+                            ? "Produces highly polished, formal text perfect for professional emails and documents."
+                            : "Erzeugt sehr formellen, feingeschliffenen Text. Perfekt fuer professionelle E-Mails und Dokumente.",
+                        showDivider: false
+                    )
+                }
+                .background(WordflowTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(WordflowTheme.primary.opacity(0.12), lineWidth: 1))
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text(appLanguage == "EN" ? "Use Cases To Start With" : "Direkt starten mit")
                     .font(.system(size: 13, weight: .semibold, design: .serif))
                     .foregroundColor(.secondary)
@@ -1410,6 +1463,37 @@ struct WelcomeOnboardingSheet: View {
         }
     }
 
+    private func doneProfileRow(title: String, body: String, showDivider: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold, design: .serif))
+                    .foregroundColor(WordflowTheme.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(WordflowTheme.primary.opacity(0.08))
+                    .clipShape(Capsule())
+
+                Text(body)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if showDivider {
+                Divider()
+                    .padding(.leading, 14)
+                    .opacity(0.45)
+            }
+        }
+    }
+
     private func onboardingStep(number: String, title: String, detail: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Text(number)
@@ -1483,6 +1567,7 @@ struct WelcomeOnboardingSheet: View {
         }
 
         if currentStep == .restart {
+            restartErrorMessage = ""
             autoRestartApp()
             return
         }
@@ -1514,7 +1599,21 @@ struct WelcomeOnboardingSheet: View {
     }
 
     private func closeQuickSetupWindow() {
+        // Always clear reopen flags first so closing the wizard cannot re-trigger itself.
         showWelcomeSheetOnSettingsOpen = false
+        quickSetupResumeAfterRestart = false
+        quickSetupLaunchStep = ""
+
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "wordflow.quicksetup" }) {
+            window.close()
+            return
+        }
+
+        if let keyWindow = NSApp.keyWindow {
+            keyWindow.close()
+            return
+        }
+
         dismiss()
     }
 
@@ -1598,14 +1697,15 @@ struct WelcomeOnboardingSheet: View {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.8))
             refreshPermissionState()
         }
     }
 
     private func requestMicrophonePermission() {
         AVCaptureDevice.requestAccess(for: .audio) { _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 refreshPermissionState()
             }
         }
@@ -1617,24 +1717,28 @@ struct WelcomeOnboardingSheet: View {
         guard !isFinishingForManualRestart else { return }
         isFinishingForManualRestart = true
 
+        quickSetupLaunchStep = "hotkey"
         quickSetupResumeAfterRestart = true
-        showWelcomeSheetOnSettingsOpen = true
+        showWelcomeSheetOnSettingsOpen = false
+        UserDefaults.standard.synchronize()
+        (NSApp.delegate as? AppDelegate)?.requestQuickSetupRelaunchOnTerminate()
 
-        LogManager.shared.log("Auto-restart: spawning new instance and terminating")
+        LogManager.shared.log("Auto-restart: flags persisted, requesting app termination")
 
-        let bundlePath = Bundle.main.bundlePath
-        let script = "sleep 1.5 && open '\(bundlePath)'"
-        let process = Process()
-        process.launchPath = "/bin/sh"
-        process.arguments = ["-c", script]
-        do {
-            try process.run()
-        } catch {
-            LogManager.shared.log("Failed to spawn restart process: \(error)")
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.35))
+            NSApplication.shared.terminate(nil)
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NSApplication.shared.terminate(nil)
+        // If normal terminate gets stuck, enforce restart without leaving spinner forever.
+        Task {
+            try? await Task.sleep(for: .seconds(1.8))
+
+            if !NSRunningApplication.current.isTerminated {
+                LogManager.shared.log("Auto-restart timeout: escalating to forced exit")
+                (NSApp.delegate as? AppDelegate)?.requestReplacementRelaunchIfNeeded()
+                exit(0)
+            }
         }
     }
 }

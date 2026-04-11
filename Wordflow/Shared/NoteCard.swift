@@ -3,7 +3,7 @@ import SwiftUI
 struct NoteCard: View {
     let entry: TranscriptionEntry
     let appLanguage: String
-    @Environment(AppState.self) var appState
+    @EnvironmentObject var appState: AppState
     @State private var isHovering = false
     @State private var hasCopied = false
 

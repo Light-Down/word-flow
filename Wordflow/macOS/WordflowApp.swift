@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UserNotifications
+import Combine
 
 @main
 struct WordflowApp: App {
@@ -53,9 +54,7 @@ struct WordflowApp: App {
               let image = loaded.copy() as? NSImage else {
             return nil
         }
-
         image.isTemplate = true
-        image.size = NSSize(width: 18, height: 18)
         return image
     }
     
@@ -74,6 +73,12 @@ struct WordflowApp: App {
             NSApp.activate(ignoringOtherApps: true)
         }
     }
+
+    static func closeQuickSetupWindow() {
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "wordflow.quicksetup" }) {
+            window.close()
+        }
+    }
 }
 
 struct QuickSetupWindowRoot: View {
@@ -87,14 +92,14 @@ struct QuickSetupWindowRoot: View {
 private struct QuickSetupWindowChromeConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        DispatchQueue.main.async {
+        Task { @MainActor in
             guard let window = view.window else { return }
             window.identifier = NSUserInterfaceItemIdentifier("wordflow.quicksetup")
             window.title = ""
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.titlebarSeparatorStyle = .none
-            window.isMovableByWindowBackground = true
+            window.isMovableByWindowBackground = false
             window.toolbar = nil
             window.styleMask.insert(.fullSizeContentView)
             window.isOpaque = true
@@ -112,14 +117,14 @@ private struct QuickSetupWindowChromeConfigurator: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             guard let window = nsView.window else { return }
             window.identifier = NSUserInterfaceItemIdentifier("wordflow.quicksetup")
             window.title = ""
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.titlebarSeparatorStyle = .none
-            window.isMovableByWindowBackground = true
+            window.isMovableByWindowBackground = false
             window.toolbar = nil
             window.styleMask.insert(.fullSizeContentView)
             window.isOpaque = true
@@ -137,11 +142,15 @@ private struct QuickSetupWindowChromeConfigurator: NSViewRepresentable {
 }
 
 // MARK: - App Delegate
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var hotkeyManager: HotkeyManager?
     var overlayWindowController: OverlayWindowController?
     private var didScheduleAutoSetupWindow = false
+    private var didLaunchReplacementOnTerminate = false
+    private var restartRequestedOnTerminate = false
     private var periodicUpdateCheckTimer: Timer?
+    private var authStateCancellable: AnyCancellable?
 
     private let lastAutoUpdateCheckKey = "lastAutoUpdateCheckAt"
     private let autoUpdateChecksEnabledKey = "autoUpdateChecksEnabled"
@@ -165,17 +174,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "hasSeenWelcomeOnboarding": false,
             "hasCompletedInitialLanguageChoice": false,
             "showWelcomeSheetOnSettingsOpen": false,
-            "quickSetupResumeAfterRestart": false
+            "quickSetupResumeAfterRestart": false,
+            "quickSetupLaunchStep": ""
         ])
 
-        // First-launch onboarding trigger (sheet is shown in SettingsView).
-        handleFirstLaunchWelcome()
+        // Resume path has highest priority and should not race with other auto-open paths.
+        let resumedQuickSetup = handleQuickSetupResumeIfNeeded()
 
-        // Resume quick setup after restart if requested by the wizard.
-        handleQuickSetupResumeIfNeeded()
-        
-        // Onboarding Check: Missing API Key?
-        checkForSetup()
+        observeAuthStateForSetup()
+
+        if !resumedQuickSetup {
+            // Mark first-launch onboarding so it can be shown after a successful login.
+            handleFirstLaunchWelcome()
+        }
 
         // Silent update checks: once on launch and then every 7 days while app stays open.
         setupAutomaticUpdateChecks()
@@ -183,6 +194,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Supabase: Session + Trial + Update in einem Call
         Task {
             await SupabaseService.shared.checkSession()
+            if !resumedQuickSetup {
+                openQuickSetupIfNeededAfterLogin(trigger: "startup-session-check")
+            }
             LicenseManager.shared.checkAndShowPaywallIfNeeded()
         }
     }
@@ -198,16 +212,50 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        requestReplacementRelaunchIfNeeded()
         periodicUpdateCheckTimer?.invalidate()
         periodicUpdateCheckTimer = nil
     }
 
-    private func handleQuickSetupResumeIfNeeded() {
+    private func handleQuickSetupResumeIfNeeded() -> Bool {
         let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: "quickSetupResumeAfterRestart") else { return }
+        let resumeFlag = defaults.bool(forKey: "quickSetupResumeAfterRestart")
+        let launchStep = defaults.string(forKey: "quickSetupLaunchStep") ?? ""
+        guard resumeFlag || !launchStep.isEmpty else { return false }
 
-        defaults.set(true, forKey: "showWelcomeSheetOnSettingsOpen")
+        let resolvedLaunchStep = launchStep.isEmpty ? "hotkey" : launchStep
+        LogManager.shared.log("🔁 Resume after restart detected: scheduling quick setup window at step '\(resolvedLaunchStep)'")
+        defaults.set(false, forKey: "quickSetupResumeAfterRestart")
+        defaults.set(resolvedLaunchStep, forKey: "quickSetupLaunchStep")
+        defaults.set(false, forKey: "showWelcomeSheetOnSettingsOpen")
         openQuickSetupWindowOnLaunch(after: 0.8)
+        return true
+    }
+
+    func requestReplacementRelaunchIfNeeded() {
+        let defaults = UserDefaults.standard
+        let hasLaunchStep = !(defaults.string(forKey: "quickSetupLaunchStep") ?? "").isEmpty
+        guard restartRequestedOnTerminate || defaults.bool(forKey: "quickSetupResumeAfterRestart") || hasLaunchStep else { return }
+        guard !didLaunchReplacementOnTerminate else { return }
+        didLaunchReplacementOnTerminate = true
+
+        let bundlePath = Bundle.main.bundlePath
+        let script = "sleep 0.65 && /usr/bin/open '\(bundlePath)'"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", script]
+
+        do {
+            try process.run()
+            LogManager.shared.log("🚀 Relaunch spawned from applicationWillTerminate")
+        } catch {
+            LogManager.shared.log("❌ Failed to spawn relaunch on terminate: \(error)")
+        }
+    }
+
+    func requestQuickSetupRelaunchOnTerminate() {
+        restartRequestedOnTerminate = true
+        LogManager.shared.log("🧭 Restart requested: relaunch will be spawned on terminate")
     }
 
     private func handleFirstLaunchWelcome() {
@@ -219,30 +267,69 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         defaults.set(true, forKey: "hasSeenWelcomeOnboarding")
         defaults.set(true, forKey: "showWelcomeSheetOnSettingsOpen")
 
-        // Open onboarding directly on first launch so user does not need a menu-bar click.
-        openQuickSetupWindowOnLaunch(after: 0.8)
-
-        LogManager.shared.log("👋 First launch detected: welcome onboarding scheduled")
+        LogManager.shared.log("👋 First launch detected: onboarding flagged and will open after login")
     }
 
     private func openQuickSetupWindowOnLaunch(after delay: TimeInterval = 0.8) {
         guard !didScheduleAutoSetupWindow else { return }
         didScheduleAutoSetupWindow = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(delay))
             NSApp.activate(ignoringOtherApps: true)
             WordflowApp.openQuickSetupWindow()
+            LogManager.shared.log("🪟 Quick setup auto-open requested")
+
+            for attempt in 1...8 {
+                try? await Task.sleep(for: .seconds(0.35))
+
+                if isQuickSetupWindowVisible() {
+                    LogManager.shared.log("✅ Quick setup window is visible after attempt \(attempt)")
+                    return
+                }
+
+                if attempt == 4 {
+                    LogManager.shared.log("🪟 Quick setup still not visible, issuing one retry open")
+                    NSApp.activate(ignoringOtherApps: true)
+                    WordflowApp.openQuickSetupWindow()
+                }
+            }
+
+            LogManager.shared.log("⚠️ Quick setup window was not visible after visibility checks")
+        }
+    }
+
+    @MainActor
+    private func isQuickSetupWindowVisible() -> Bool {
+        NSApp.windows.contains { window in
+            window.identifier?.rawValue == "wordflow.quicksetup" && window.isVisible
         }
     }
     
-    private func checkForSetup() {
-        let apiKey = UserDefaults.standard.string(forKey: "groqAPIKey") ?? ""
-        let missingAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        guard missingAPIKey else { return }
+    private func observeAuthStateForSetup() {
+        authStateCancellable = SupabaseService.shared.$isLoggedIn
+            .removeDuplicates()
+            .sink { [weak self] isLoggedIn in
+                guard isLoggedIn else { return }
+                self?.openQuickSetupIfNeededAfterLogin(trigger: "auth-state-change")
+            }
+    }
 
-        // Missing API key should always open the quick setup directly.
-        openQuickSetupWindowOnLaunch(after: 1.0)
-        LogManager.shared.log("🔧 Missing API key detected: opening quick setup automatically")
+    private func hasMissingAPIKey() -> Bool {
+        let apiKey = UserDefaults.standard.string(forKey: "groqAPIKey") ?? ""
+        return apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func openQuickSetupIfNeededAfterLogin(trigger: String) {
+        guard SupabaseService.shared.isLoggedIn else { return }
+
+        let defaults = UserDefaults.standard
+        let shouldShowWelcome = defaults.bool(forKey: "showWelcomeSheetOnSettingsOpen")
+        let missingAPIKey = hasMissingAPIKey()
+        guard shouldShowWelcome || missingAPIKey else { return }
+
+        openQuickSetupWindowOnLaunch(after: 0.5)
+        LogManager.shared.log("🔧 Opening quick setup after login (\(trigger)); missingAPIKey=\(missingAPIKey), firstLaunchFlag=\(shouldShowWelcome)")
     }
 
     private func setupAutomaticUpdateChecks() {
@@ -331,6 +418,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func startRecording() {
+        guard LicenseManager.shared.canUseApp else {
+            let appLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "EN"
+            if SupabaseService.shared.isLoggedIn {
+                LicenseManager.shared.checkAndShowPaywallIfNeeded()
+                let body = appLanguage.uppercased() == "EN"
+                    ? "Your trial has expired. Please unlock Wordflow to continue."
+                    : "Deine Trial ist abgelaufen. Bitte entsperre Wordflow, um fortzufahren."
+                sendNotification(title: "Wordflow", body: body)
+            } else {
+                let body = appLanguage.uppercased() == "EN"
+                    ? "Please log in from the menu bar before using Wordflow."
+                    : "Bitte melde dich zuerst ueber die Menueleiste an, bevor du Wordflow nutzt."
+                sendNotification(title: "Wordflow", body: body)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            return
+        }
+
         guard let appState = AppState.shared else { 
             print("Fehler: AppState noch nicht initialisiert")
             return 
@@ -552,136 +657,58 @@ struct MenuBarView: View {
     }
 
     private var mainContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
 
-                // ── Update banner ───────────────────────────────────
-                if supabase.hasUpdateAvailable,
-                   let info = supabase.latestVersionInfo {
-                    Button {
-                        if let url = URL(string: info.url) {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrow.down.circle.fill")
+            // ── Update banner ───────────────────────────────────
+            if supabase.hasUpdateAvailable,
+               let info = supabase.latestVersionInfo {
+                Button {
+                    if let url = URL(string: info.url) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundColor(.white)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(appLanguage == "EN" ? "Update available — v\(info.version)" : "Update verfügbar — v\(info.version)")
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.white)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(appLanguage == "EN" ? "Update available — v\(info.version)" : "Update verfügbar — v\(info.version)")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.white)
-                                Text(appLanguage == "EN" ? "Tap to download" : "Tippen zum Herunterladen")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.white.opacity(0.75))
-                            }
-                            Spacer()
+                            Text(appLanguage == "EN" ? "Tap to download" : "Tippen zum Herunterladen")
+                                .font(.system(size: 11))
+                                .foregroundColor(.white.opacity(0.8))
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(WordflowTheme.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        Spacer()
                     }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(WordflowTheme.primary)
+                    )
                 }
+                .buttonStyle(.plain)
+            }
 
-                HStack(spacing: 10) {
-                    Image(systemName: "waveform.circle.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(WordflowTheme.primary)
-                    Text("Wordflow")
-                        .font(.system(size: 22, weight: .semibold, design: .serif))
-                        .foregroundColor(WordflowTheme.onSurface)
-                }
-                .padding(.top, 12)
+            // ── Header ───────────────────────────────────
+            HStack(spacing: 10) {
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 14)
+                Text("Wordflow")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(WordflowTheme.onSurface)
+            }
+            .padding(.top, 8)
+            .padding(.horizontal, 4)
 
-                menuBarSectionTitle(appLanguage == "EN" ? "HISTORY" : "VERLAUF")
-
-                menuBarCard {
-                    VStack(spacing: 0) {
-                        if appState.clipboardManager.history.isEmpty {
-                            HStack(spacing: 10) {
-                                Image(systemName: "doc.text.magnifyingglass")
-                                    .foregroundColor(WordflowTheme.onSurfaceVariant)
-                                Text(appLanguage == "EN" ? "No recordings yet" : "Noch keine Aufnahmen")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(WordflowTheme.onSurfaceVariant)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 14)
-                        } else {
-                            ForEach(Array(appState.clipboardManager.history.prefix(3).enumerated()), id: \.element.id) { index, entry in
-                                MenuBarRowButton {
-                                    appState.clipboardManager.copyToClipboard(text: entry.text)
-                                } label: {
-                                    HStack(alignment: .top, spacing: 10) {
-                                        Image(systemName: "text.quote")
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundColor(WordflowTheme.primary)
-                                            .frame(width: 18)
-                                        Text(entry.shortText)
-                                            .lineLimit(1)
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(WordflowTheme.onSurface)
-                                        Spacer(minLength: 0)
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 10)
-                                }
-
-                                if index < 2 {
-                                    Divider()
-                                        .padding(.leading, 40)
-                                        .opacity(0.35)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                menuBarCard {
-                    MenuBarRowButton {
-                        WordflowApp.openHistoryWindow()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "note.text")
-                            Text(appLanguage == "EN" ? "Show all notes" : "Alle Notizen anzeigen")
-                                .font(.system(size: 14, weight: .semibold, design: .serif))
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundColor(WordflowTheme.onSurface)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                    }
-                }
-
-                menuBarSectionTitle(appLanguage == "EN" ? "QUICK CONTROLS" : "SCHNELLAKTIONEN")
-                menuBarCard {
-                    VStack(spacing: 0) {
-                        PillToggleRow(
-                            title: appLanguage == "EN" ? "Auto Paste" : "Automatisch einfügen",
-                            icon: "doc.on.clipboard",
-                            isOn: $autoPasteEnabled
-                        )
-
-                        Divider()
-                            .padding(.leading, 40)
-                            .opacity(0.35)
-
-                        PillToggleRow(
-                            title: appLanguage == "EN" ? "Sound Feedback" : "Soundfeedback",
-                            icon: "speaker.wave.2",
-                            isOn: $soundsEnabled
-                        )
-                    }
-                }
-
-                menuBarSectionTitle(appLanguage == "EN" ? "PROMPT PROFILE" : "PROMPT PROFIL")
+            // ── Profile Section ───────────────────────────────────
+            VStack(alignment: .leading, spacing: 6) {
+                menuBarSectionTitle(appLanguage == "EN" ? "Prompt Profile" : "Prompt Profil")
                 menuBarCard {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             ForEach(promptManager.profiles) { profile in
                                 PromptButton(profile: profile)
                             }
@@ -690,51 +717,53 @@ struct MenuBarView: View {
                         .padding(.vertical, 10)
                     }
                 }
+            }
 
-                menuBarCard {
-                    VStack(spacing: 0) {
+            // ── App Settings ───────────────────────────────────
+            menuBarCard {
+                VStack(spacing: 0) {
                         if #available(macOS 14.0, *) {
                             SettingsLink {
-                                settingsLinkLabel
+                                MenuBarRowHighlight { settingsLinkLabel }
                             }
                             .buttonStyle(.plain)
                         } else {
                             Button(action: {
                                 NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
                             }) {
-                                settingsLinkLabel
+                                MenuBarRowHighlight { settingsLinkLabel }
                             }
                             .buttonStyle(.plain)
                         }
 
                         Divider()
                             .padding(.leading, 40)
-                            .opacity(0.35)
+                        .opacity(0.5)
 
-                        MenuBarRowButton(action: {
-                            NSApplication.shared.terminate(nil)
-                        }) {
-                            Label(appLanguage == "EN" ? "Quit" : "Beenden", systemImage: "power")
-                                .foregroundColor(.red.opacity(0.85))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                        }
-                        .keyboardShortcut("q")
+                    MenuBarRowButton(action: {
+                        NSApplication.shared.terminate(nil)
+                    }) {
+                        Label(appLanguage == "EN" ? "Quit" : "Beenden", systemImage: "power")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.red.opacity(0.9))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
                     }
+                    .keyboardShortcut("q")
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 8)
         }
-        .frame(width: 480, height: 580)
-        .background(WordflowTheme.background)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
+        .frame(width: 360)
+        .background(.regularMaterial)
     }
 
     private var settingsLinkLabel: some View {
         HStack(spacing: 8) {
             Label(appLanguage == "EN" ? "Settings..." : "Einstellungen...", systemImage: "gear")
-                .font(.system(size: 14, weight: .semibold, design: .serif))
+                .font(.system(size: 13, weight: .medium))
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.system(size: 11, weight: .semibold))
@@ -747,23 +776,38 @@ struct MenuBarView: View {
 
     private func menuBarSectionTitle(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 11, weight: .semibold, design: .serif))
+            .font(.caption.weight(.semibold))
             .foregroundColor(WordflowTheme.onSurfaceVariant.opacity(0.9))
-            .textCase(.uppercase)
-            .tracking(1.6)
             .padding(.leading, 4)
-            .padding(.top, 2)
     }
 
     @ViewBuilder
     private func menuBarCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .background(WordflowTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(WordflowTheme.outline.opacity(0.55), lineWidth: 1)
+            .background(Color.primary.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+/// A wrapper view that adds a hover highlight for custom buttons or links.
+struct MenuBarRowHighlight<Content: View>: View {
+    @ViewBuilder let content: Content
+    @State private var isHovered = false
+
+    var body: some View {
+        content
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
             )
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
+            }
     }
 }
 
@@ -777,7 +821,12 @@ struct MenuBarRowButton<Label: View>: View {
         Button(action: action) {
             label
                 .contentShape(Rectangle())
-                .background(isHovered ? WordflowTheme.onSurface.opacity(0.06) : Color.clear)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(isHovered ? Color.primary.opacity(0.08) : Color.clear)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                )
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -794,36 +843,19 @@ struct PillToggleRow: View {
     @Binding var isOn: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(WordflowTheme.primary)
-                .frame(width: 20)
+                .frame(width: 16)
 
-            Text(title)
-                .font(.system(size: 14, weight: .semibold, design: .serif))
-                .foregroundColor(WordflowTheme.onSurface)
-
-            Spacer(minLength: 0)
-
-            Button {
-                withAnimation(.spring(response: 0.22, dampingFraction: 0.85)) {
-                    isOn.toggle()
-                }
-            } label: {
-                ZStack(alignment: isOn ? .trailing : .leading) {
-                    Capsule()
-                        .fill(isOn ? WordflowTheme.primary : WordflowTheme.outline.opacity(0.8))
-                        .frame(width: 44, height: 24)
-
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 18, height: 18)
-                        .padding(.horizontal, 3)
-                        .shadow(color: .black.opacity(0.18), radius: 1.5, x: 0, y: 1)
-                }
+            Toggle(isOn: $isOn) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(WordflowTheme.onSurface)
             }
-            .buttonStyle(.plain)
+            .toggleStyle(.switch)
+            .tint(WordflowTheme.primary)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -834,6 +866,7 @@ struct PillToggleRow: View {
 struct PromptButton: View {
     let profile: PromptProfile
     @ObservedObject var promptManager = PromptManager.shared
+    @State private var isHovered = false
     
     var isSelected: Bool {
         promptManager.selectedProfileId == profile.id
@@ -843,9 +876,9 @@ struct PromptButton: View {
         Button {
             promptManager.selectProfile(id: profile.id)
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Text(profile.name)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium, design: .serif))
+                    .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
 
                 if isSelected {
@@ -854,16 +887,19 @@ struct PromptButton: View {
                 }
             }
             .foregroundColor(isSelected ? .white : WordflowTheme.onSurface)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .frame(minWidth: 110)
-            .background(isSelected ? WordflowTheme.primary : WordflowTheme.background)
-            .clipShape(Capsule())
-            .overlay(
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .frame(minWidth: 90)
+            .background(
                 Capsule()
-                    .stroke(isSelected ? Color.clear : WordflowTheme.outline.opacity(0.55), lineWidth: 1)
+                    .fill(isSelected ? WordflowTheme.primary : (isHovered ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04)))
             )
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }

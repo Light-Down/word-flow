@@ -9,68 +9,82 @@ enum LoginMode {
 }
 
 struct LoginView: View {
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @State private var mode: LoginMode = .magicLink
 
     var body: some View {
         VStack(spacing: 0) {
             header
 
-            Divider()
-
             Picker("", selection: $mode) {
                 Text("Magic Link").tag(LoginMode.magicLink)
-                Text("Passwort").tag(LoginMode.emailPassword)
+                Text(appLanguage == "EN" ? "Password" : "Passwort").tag(LoginMode.emailPassword)
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.large)
             .padding(.horizontal, 28)
-            .padding(.top, 20)
+            .padding(.bottom, 16)
             .onChange(of: mode) { _, _ in
                 SupabaseService.shared.authError = nil
             }
 
-            switch mode {
-            case .magicLink:
-                MagicLinkForm()
-            case .emailPassword:
-                EmailPasswordForm()
+            VStack(spacing: 0) {
+                switch mode {
+                case .magicLink:
+                    MagicLinkForm()
+                        .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.98)), removal: .opacity))
+                case .emailPassword:
+                    EmailPasswordForm()
+                        .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.98)), removal: .opacity))
+                }
             }
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: mode)
 
             orDivider
-
+            
             GoogleSignInButton()
                 .padding(.horizontal, 28)
-                .padding(.bottom, 24)
+                .padding(.bottom, 8)
         }
-        .frame(width: 340)
-        .background(.background)
+        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .background(WordflowTheme.background.opacity(0.4))
+        // No clipShape, no overlay, no outer padding to avoid black bars
+        .tint(WordflowTheme.primary)
     }
 
     private var header: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "mic.circle.fill")
-                .font(.system(size: 52))
-                .foregroundStyle(.primary)
-                .padding(.top, 32)
+        VStack(spacing: 8) {
+            Image("AppLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 36)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
 
-            Text("Willkommen bei Wordflow")
-                .font(.title2)
-                .bold()
+            Text(appLanguage == "EN" ? "Welcome" : "Willkommen")
+                .font(.system(size: 24, weight: .bold, design: .default))
+                .foregroundStyle(WordflowTheme.onSurface)
 
-            Text("Melde dich an, um loszulegen")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Text(appLanguage == "EN" ? "Sign in to get started" : "Melde dich an, um loszulegen")
+                .font(.body)
+                .foregroundStyle(WordflowTheme.onSurfaceVariant)
         }
-        .padding(.bottom, 28)
+        .padding(.bottom, 20)
     }
 
     private var orDivider: some View {
-        HStack {
-            Rectangle().frame(height: 1).foregroundStyle(.separator)
-            Text("oder").font(.footnote).foregroundStyle(.secondary)
-            Rectangle().frame(height: 1).foregroundStyle(.separator)
+        HStack(spacing: 16) {
+            Rectangle().frame(height: 1).foregroundStyle(WordflowTheme.outline.opacity(0.3))
+            Text(appLanguage == "EN" ? "or" : "oder")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(WordflowTheme.onSurfaceVariant.opacity(0.8))
+            Rectangle().frame(height: 1).foregroundStyle(WordflowTheme.outline.opacity(0.3))
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 8)
+        .padding(.vertical, 16)
     }
 }
 
@@ -78,6 +92,7 @@ struct LoginView: View {
 
 struct MagicLinkForm: View {
     @ObservedObject private var supabase = SupabaseService.shared
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @State private var email = ""
     @State private var didSend = false
 
@@ -91,8 +106,9 @@ struct MagicLinkForm: View {
 
     private var loginForm: some View {
         VStack(spacing: 16) {
-            TextField("E-Mail-Adresse", text: $email)
+            TextField(appLanguage == "EN" ? "Email Address" : "E-Mail-Adresse", text: $email)
                 .textFieldStyle(.roundedBorder)
+                .controlSize(.large)
                 .textContentType(.emailAddress)
                 .autocorrectionDisabled()
                 .onSubmit { sendLink() }
@@ -109,16 +125,17 @@ struct MagicLinkForm: View {
             } label: {
                 HStack {
                     if supabase.isLoading { ProgressView().controlSize(.small) }
-                    Text("Magic Link senden")
+                    Text(appLanguage == "EN" ? "Send Magic Link" : "Magic Link senden")
+                        .font(.system(size: 14, weight: .semibold))
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || supabase.isLoading)
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, 8)
     }
 
     private var sentConfirmation: some View {
@@ -127,24 +144,29 @@ struct MagicLinkForm: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.green)
 
-            Text("Link gesendet!")
+            Text(appLanguage == "EN" ? "Link sent!" : "Link gesendet!")
                 .font(.headline)
 
-            Text("Wir haben dir einen Magic Link an **\(email)** gesendet. Öffne die E-Mail und tippe auf den Link, um dich anzumelden.")
+            let desc = appLanguage == "EN" 
+                ? "We've sent a magic link to **\(email)**. Open the email and tap the link to sign in."
+                : "Wir haben dir einen Magic Link an **\(email)** gesendet. Öffne die E-Mail und tippe auf den Link, um dich anzumelden."
+            Text(.init(desc))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button("Andere E-Mail verwenden") {
-                didSend = false
-                email = ""
+            Button(appLanguage == "EN" ? "Use different email" : "Andere E-Mail verwenden") {
+                withAnimation {
+                    didSend = false
+                    email = ""
+                }
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
             .font(.footnote)
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, 8)
     }
 
     private func sendLink() {
@@ -163,19 +185,22 @@ struct MagicLinkForm: View {
 
 struct EmailPasswordForm: View {
     @ObservedObject private var supabase = SupabaseService.shared
+    @AppStorage("appLanguage") private var appLanguage = "EN"
     @State private var email = ""
     @State private var password = ""
     @State private var isSignUp = false
 
     var body: some View {
-        VStack(spacing: 14) {
-            TextField("E-Mail-Adresse", text: $email)
+        VStack(spacing: 16) {
+            TextField(appLanguage == "EN" ? "Email Address" : "E-Mail-Adresse", text: $email)
                 .textFieldStyle(.roundedBorder)
+                .controlSize(.large)
                 .textContentType(.emailAddress)
                 .autocorrectionDisabled()
 
-            SecureField("Passwort", text: $password)
+            SecureField(appLanguage == "EN" ? "Password" : "Passwort", text: $password)
                 .textFieldStyle(.roundedBorder)
+                .controlSize(.large)
                 .textContentType(isSignUp ? .newPassword : .password)
 
             if let error = supabase.authError {
@@ -185,35 +210,45 @@ struct EmailPasswordForm: View {
                     .multilineTextAlignment(.center)
             }
 
-            Button {
-                Task {
-                    if isSignUp {
-                        await supabase.signUpWithEmail(email: email, password: password)
-                    } else {
-                        await supabase.signInWithEmail(email: email, password: password)
+            VStack(spacing: 12) {
+                Button {
+                    Task {
+                        if isSignUp {
+                            await supabase.signUpWithEmail(email: email, password: password)
+                        } else {
+                            await supabase.signInWithEmail(email: email, password: password)
+                        }
                     }
+                } label: {
+                    HStack {
+                        if supabase.isLoading { ProgressView().controlSize(.small) }
+                        Text(isSignUp ? (appLanguage == "EN" ? "Create Account" : "Konto erstellen") : (appLanguage == "EN" ? "Sign In" : "Anmelden"))
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
-            } label: {
-                HStack {
-                    if supabase.isLoading { ProgressView().controlSize(.small) }
-                    Text(isSignUp ? "Konto erstellen" : "Anmelden")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(email.isEmpty || password.count < 6 || supabase.isLoading)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(email.isEmpty || password.count < 6 || supabase.isLoading)
 
-            Button(isSignUp ? "Bereits ein Konto? Anmelden" : "Neu hier? Konto erstellen") {
-                isSignUp.toggle()
-                supabase.authError = nil
+                Button(action: {
+                    withAnimation {
+                        isSignUp.toggle()
+                        supabase.authError = nil
+                    }
+                }) {
+                    Text(isSignUp 
+                        ? (appLanguage == "EN" ? "Already have an account? Sign in" : "Bereits ein Konto? Anmelden")
+                        : (appLanguage == "EN" ? "New here? Create account" : "Neu hier? Konto erstellen"))
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .font(.footnote)
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 8)
     }
 }
 
@@ -221,16 +256,18 @@ struct EmailPasswordForm: View {
 
 struct GoogleSignInButton: View {
     @ObservedObject private var supabase = SupabaseService.shared
+    @AppStorage("appLanguage") private var appLanguage = "EN"
 
     var body: some View {
         Button {
             Task { await supabase.signInWithGoogle() }
         } label: {
-            HStack {
+            HStack(spacing: 10) {
                 Image(systemName: "globe")
-                Text("Mit Google anmelden")
+                Text(appLanguage == "EN" ? "Continue with Google" : "Mit Google anmelden")
+                    .font(.system(size: 14, weight: .medium))
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .buttonStyle(.bordered)
         .controlSize(.large)

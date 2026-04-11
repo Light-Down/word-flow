@@ -19,10 +19,11 @@ class OverlayWindowController: NSWindowController, ObservableObject {
     
     private var hostingView: NSHostingView<AnyView>?
     
-    // Window dimensions
-    private let expandedWidth: CGFloat = 160 // Compact control width
-    private let collapsedWidth: CGFloat = 70 // Smallest width (just bars)
-    private let windowHeight: CGFloat = 44 // Slimmer pill
+    // Window dimensions (The invisible canvas)
+    // We add +60 padding to width and +40 to height so the drop shadow doesn't get clipped into a sharp rectangle by the window bounds!
+    private let expandedWidth: CGFloat = 220 
+    private let collapsedWidth: CGFloat = 130 
+    private let windowHeight: CGFloat = 84
     
     init(appState: AppState, onCancel: (() -> Void)? = nil, onLock: (() -> Void)? = nil, onStop: (() -> Void)? = nil) {
         self.appState = appState
@@ -175,22 +176,17 @@ struct PillView: View {
         // BACKGROUND (Adapts to Content Size)
         .background(
             ZStack {
-                // A. Solid dark base
-                WordflowTheme.recordingBase
+                // A. Real Mac Glass Material
+                VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
                 
-                // B. Living Nebula (clipped to capsule)
-                NebulaContainer(
-                    audioRecorder: appState.audioRecorder,
-                    isActive: appState.isRecording || appState.isProcessing
-                )
-                .opacity(0.6)
-                
-                // C. Gloss Surface
-                LinearGradient(
-                    colors: [.white.opacity(0.16), .clear, .white.opacity(0.05)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                // B. Liquid Glow (clipped to capsule, behind glass)
+                if appState.isRecording || appState.isProcessing {
+                    LiquidGlowContainer(
+                        audioRecorder: appState.audioRecorder,
+                        isActive: true
+                    )
+                    .opacity(0.8)
+                }
             }
             .clipShape(Capsule())
         )
@@ -203,13 +199,12 @@ struct PillView: View {
                 Capsule()
                     .strokeBorder(
                         LinearGradient(
-                            colors: [.white.opacity(0.34), .white.opacity(0.08)],
+                            colors: [.white.opacity(0.4), .white.opacity(0.05)],
                             startPoint: .top,
                             endPoint: .bottom
                         ),
                         lineWidth: 0.7
                     )
-                    .blendMode(.overlay)
                 
                 // Locked Indicator
                 if controller.isLocked {
@@ -218,7 +213,6 @@ struct PillView: View {
                 }
             }
         )
-        .shadow(color: .black.opacity(0.24), radius: 12, x: 0, y: 5)
         
         // INTERACTION
         .scaleEffect(isHovering ? 1.02 : 1.0)
@@ -234,52 +228,6 @@ struct PillView: View {
         .background(Color.clear)
     }
 }
-
-// MARK: - Nebula Mesh (Vibrant & Compact)
-struct NebulaMeshView: View {
-    var isActive: Bool
-    var audioLevel: Double
-    
-    var body: some View {
-        TimelineView(.animation) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            // Boost reaction: 0.2 to 1.5 multiplier
-            let level = isActive ? max(0.2, audioLevel * 3.0) : 0.1
-            
-            GeometryReader { geo in
-                ZStack {
-                    // Warm accent halo
-                    Circle()
-                        .fill(WordflowTheme.primary)
-                        .frame(width: geo.size.width * 0.95, height: geo.size.width * 0.95)
-                        .blur(radius: 34)
-                        .offset(x: -35 + (cos(time * 0.9) * 14), y: -8)
-                        .opacity(isActive ? 0.30 : 0.12)
-                    
-                    // Cool balancing halo for depth
-                    Circle()
-                        .fill(Color(red: 0.25, green: 0.38, blue: 0.72))
-                        .frame(width: geo.size.width * 1.0, height: geo.size.width * 1.0)
-                        .blur(radius: 36)
-                        .offset(x: 38 + (sin(time * 0.8) * 14), y: 7)
-                        .opacity(isActive ? 0.24 : 0.1)
-                    
-                    // Dynamic White Core glow (behind the actual core)
-                    if isActive {
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: geo.size.width * 0.34, height: geo.size.width * 0.34)
-                            .blur(radius: 24)
-                            .opacity(min(0.82, level * 0.5))
-                    }
-                }
-                .scaleEffect(isActive ? 1.0 + (level * 0.07) : 1.0)
-                .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.6), value: level)
-            }
-        }
-    }
-}
-
 
 // MARK: - Waveform Container (Observes AudioRecorder directly)
 // Critical for SwiftUI updates!
@@ -302,18 +250,47 @@ struct WaveformContainer: View {
     }
 }
 
-// MARK: - Nebula Container (Observes for background)
-struct NebulaContainer: View {
+// MARK: - Liquid Glow Performance Visuals
+struct LiquidGlowContainer: View {
     @ObservedObject var audioRecorder: AudioRecorder
     var isActive: Bool
     
     var body: some View {
-        NebulaMeshView(
+        LiquidGlowView(
             isActive: isActive,
             audioLevel: Double(audioRecorder.audioLevel)
         )
-        // Opacity logic is here to ensure it updates with audio level if needed
-        .opacity(isActive ? 0.68 : 0.26)
+    }
+}
+
+struct LiquidGlowView: View {
+    var isActive: Bool
+    var audioLevel: Double
+    
+    var body: some View {
+        let level = isActive ? max(0.1, audioLevel * 2.5) : 0.05
+        
+        GeometryReader { geo in
+            ZStack {
+                // A single, beautifully smooth core gradient 
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                WordflowTheme.primary.opacity(0.7),
+                                WordflowTheme.primary.opacity(0)
+                            ]),
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: geo.size.width * 0.8
+                        )
+                    )
+                    .frame(width: geo.size.width * 2, height: geo.size.width * 2)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .scaleEffect(isActive ? 1.0 + (level * 0.3) : 1.0)
+            .opacity(isActive ? 0.3 + (level * 0.5) : 0.1)
+        }
     }
 }
 
@@ -370,38 +347,19 @@ struct WaveformBar: View {
             return (sensitivity: 1.0, delay: 0.0, dampening: 0.7)
         }
     }
-    
-    @State private var displayedLevel: Double = 0
-    
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            let config = frequencyConfig
-            
-            // Add subtle organic variation based on time and position
-            let phaseOffset = sin(time * 3.0 + Double(index) * 1.5) * 0.08
-            let variation = 1.0 + phaseOffset
-            
-            // Apply sensitivity and variation - reduced overall sensitivity
-            let adjustedLevel = level * config.sensitivity * variation * 0.6 // 60% of original
-            
-            // Use power curve instead of sqrt for more dynamic range
-            // This means low volumes stay low, loud volumes go high
-            let visibleLevel = adjustedLevel > 0 ? pow(adjustedLevel, 0.7) : 0
-            
-            // Calculate final height
-            let extraHeight = CGFloat(visibleLevel) * (maxHeight - minHeight)
-            let targetHeight = minHeight + extraHeight
-            
-            // Render
-            Capsule()
-                .fill(Color.white.opacity(0.95))
-                .frame(width: width, height: max(minHeight, min(maxHeight, targetHeight)))
-                .animation(
-                    .spring(response: 0.15 + config.delay, dampingFraction: config.dampening),
-                    value: targetHeight
-                )
-        }
+        let config = frequencyConfig
+        
+        // Add random variation to differentiate the bars slightly without 60fps timer
+        let adjustedLevel = level * config.sensitivity * 0.7
+        let visibleLevel = adjustedLevel > 0 ? pow(adjustedLevel, 0.7) : 0
+        
+        let extraHeight = CGFloat(visibleLevel) * (maxHeight - minHeight)
+        let targetHeight = minHeight + extraHeight
+        
+        Capsule()
+            .fill(Color.white.opacity(0.95))
+            .frame(width: width, height: max(minHeight, min(maxHeight, targetHeight)))
     }
 }
 
