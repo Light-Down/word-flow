@@ -1922,6 +1922,44 @@ struct SystemSettingsView: View {
                     } else { Button(appLanguage == "EN" ? "Grant Permission" : "Erlauben") { let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!; NSWorkspace.shared.open(url) }.buttonStyle(.borderedProminent).tint(WordflowTheme.primary) } }
                 if !hasAccessibility { Text(appLanguage == "EN" ? "Required for auto-pasting text." : "Benötigt für das automatische Einfügen.").font(.footnote).foregroundStyle(.orange) } }
             
+            if let lastError = appState.lastError {
+                Section(appLanguage == "EN" ? "Last Error" : "Letzter Fehler") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: categoryIcon(lastError.category))
+                                .foregroundStyle(categoryColor(lastError.category))
+                            Text(lastError.userMessage(for: appLanguage))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(categoryColor(lastError.category))
+                        }
+                        HStack {
+                            Text(appLanguage == "EN" ? "Stage:" : "Stufe:")
+                                .foregroundStyle(.secondary)
+                                .font(.footnote)
+                            Text(lastError.stage.rawValue.capitalized)
+                                .font(.footnote)
+                            if let code = lastError.code {
+                                Text("(\(code))")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(lastError.timestamp, style: .relative)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(lastError.technicalMessage.prefix(300))
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
+                    }
+                    .padding(.vertical, 4)
+                    Button(appLanguage == "EN" ? "Clear Error" : "Fehler löschen", role: .destructive) {
+                        appState.clearLastError()
+                    }
+                }
+            }
+
             Section(appLanguage == "EN" ? "Logging & Diagnostics" : "Logging & Diagnose") {
                 Button(appLanguage == "EN" ? "Reveal Log File" : "Log-Datei anzeigen") { if let url = LogManager.shared.getLogFileURL() { NSWorkspace.shared.open(url) } }
                 Button(appLanguage == "EN" ? "Clear History" : "Verlauf komplett löschen", role: .destructive) { appState.clipboardManager.clearHistory(); appState.refreshHistory() }
@@ -1929,6 +1967,29 @@ struct SystemSettingsView: View {
                 HStack { Text(appLanguage == "EN" ? "Version" : "Version"); Spacer(); Text({ let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"; let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"; return "\(version) (Build \(build))" }()).foregroundStyle(.secondary) }
             }
         }.formStyle(.grouped).padding(16).sheet(isPresented: $showingGuide) { APIGuideSheet(appLanguage: appLanguage) }.onAppear { hasAccessibility = AXIsProcessTrusted() }
+    }
+
+    private func categoryIcon(_ category: AppErrorCategory) -> String {
+        switch category {
+        case .networkOffline: return "wifi.slash"
+        case .timeout: return "clock.badge.exclamationmark"
+        case .rateLimit: return "speedometer"
+        case .keyMissing: return "key.slash"
+        case .keyInvalid: return "key.slash"
+        case .serviceUnavailable: return "server.rack"
+        case .apiError: return "exclamationmark.triangle"
+        case .unknown: return "questionmark.circle"
+        }
+    }
+
+    private func categoryColor(_ category: AppErrorCategory) -> Color {
+        switch category {
+        case .networkOffline, .timeout: return .orange
+        case .rateLimit: return .yellow
+        case .keyMissing, .keyInvalid: return .red
+        case .serviceUnavailable: return .orange
+        case .apiError, .unknown: return .red
+        }
     }
 }
 // MARK: - Hotkey Recorder Components
