@@ -223,7 +223,7 @@ class PromptManager: ObservableObject {
             RULE: Reply ONLY with the final, corrected text. No introductions, confirmations or explanations. Your output will be directly inserted for the user.
             """,
             isDefault: true
-        )
+        ),
         // ─────────────────────────────────────────
         // MARK: 4. Prompt Engineer
         // ─────────────────────────────────────────
