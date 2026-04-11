@@ -1,6 +1,7 @@
 import Foundation
 import Carbon
 import AppKit
+import CoreGraphics
 
 // MARK: - Hotkey Configuration
 struct HotkeyConfig: Codable, Equatable {
@@ -130,12 +131,13 @@ struct HotkeyConfig: Codable, Equatable {
 
 class HotkeyManager {
     static let configDidChangeNotification = Notification.Name("HotkeyManager.configDidChange")
-    
+
     private var globalKeyMonitor: Any?
     private var localKeyMonitor: Any?
     private var globalFlagMonitor: Any?
     private var localFlagMonitor: Any?
     private var configObserver: NSObjectProtocol?
+    private var eventTap: CFMachPort?
     
     private let onHotkeyChange: (Bool) -> Void
     private let onLockChange: ((Bool) -> Void)?
@@ -145,8 +147,8 @@ class HotkeyManager {
     private var isRecording = false
     var isLocked = false
     private var config: HotkeyConfig
-    private var fnKeyPressed = false
-    private var modifierComboActive = false  // Tracks if modifier-only combo is held
+    var fnKeyPressed = false
+    var modifierComboActive = false  // Tracks if modifier-only combo is held
     
     init(onHotkeyChange: @escaping (Bool) -> Void, onLockChange: ((Bool) -> Void)? = nil, onExpandChange: ((Bool) -> Void)? = nil, onCancel: (() -> Void)? = nil) {
         self.onHotkeyChange = onHotkeyChange
@@ -195,38 +197,97 @@ class HotkeyManager {
     
     func start() {
         print("🎹 HotkeyManager gestartet: \(config.displayString) (mode: \(config.useFnKey ? "Fn" : config.useModifierOnly ? "ModifierOnly" : "Key+Mod"))")
-        
+
         // Monitor for modifier key changes (Fn, modifier-only combos, and modifier release)
         globalFlagMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
         }
-        
+
         localFlagMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
             return event
         }
-        
-        // Monitor for key events (lock via Space, cancel via Escape)
+
+        // Monitor for key events (cancel via Escape/Cmd+.)
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             self?.handleKeyEvent(event)
         }
-        
+
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             self?.handleKeyEvent(event)
             return event
         }
+
+        // CGEventTap: intercept and suppress Space keydown when used as lock trigger
+        startEventTap()
     }
-    
+
     func stop() {
         [globalFlagMonitor, localFlagMonitor, globalKeyMonitor, localKeyMonitor].forEach { monitor in
-            if let m = monitor {
-                NSEvent.removeMonitor(m)
-            }
+            if let m = monitor { NSEvent.removeMonitor(m) }
         }
         globalFlagMonitor = nil
         localFlagMonitor = nil
         globalKeyMonitor = nil
         localKeyMonitor = nil
+        stopEventTap()
+    }
+
+    private func startEventTap() {
+        guard AXIsProcessTrusted() else {
+            print("⚠️ Kein Accessibility-Zugriff – Space-Unterdrückung nicht aktiv")
+            return
+        }
+
+        let selfPtr = Unmanaged.passRetained(self).toOpaque()
+
+        let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
+            callback: { _, type, event, userInfo -> Unmanaged<CGEvent>? in
+                guard type == .keyDown,
+                      let userInfo = userInfo else { return Unmanaged.passRetained(event) }
+                let manager = Unmanaged<HotkeyManager>.fromOpaque(userInfo).takeUnretainedValue()
+                let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+                // Space keycode = 49
+                if keyCode == 49 && manager.config.isFlagsBased && manager.isRecording && !manager.isLocked {
+                    let isHotkeyHeld = manager.config.useFnKey ? manager.fnKeyPressed : manager.modifierComboActive
+                    if isHotkeyHeld {
+                        // Trigger lock directly here (NSEvent monitor won't see this event)
+                        DispatchQueue.main.async {
+                            print("🔒 Aufnahme GELOCKT (\(manager.config.displayString) + Leertaste)")
+                            manager.isLocked = true
+                            manager.onLockChange?(true)
+                        }
+                        // Suppress the Space so it doesn't get inserted
+                        return nil
+                    }
+                }
+                return Unmanaged.passRetained(event)
+            },
+            userInfo: selfPtr
+        )
+
+        guard let tap = tap else {
+            Unmanaged<HotkeyManager>.fromOpaque(selfPtr).release()
+            print("⚠️ CGEventTap konnte nicht erstellt werden")
+            return
+        }
+
+        self.eventTap = tap
+        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        print("✅ CGEventTap aktiv – Space wird beim Lock unterdrückt")
+    }
+
+    private func stopEventTap() {
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            eventTap = nil
+        }
     }
     
     private func handleFlagsChanged(_ event: NSEvent) {
@@ -358,17 +419,9 @@ class HotkeyManager {
             return
         }
         
-        // Handle Space key for locking in Fn mode AND modifier-only mode
-        if config.isFlagsBased && event.keyCode == 49 && event.type == .keyDown && !event.isARepeat {
-            let isHotkeyHeld = config.useFnKey ? fnKeyPressed : modifierComboActive
-            if isRecording && !isLocked && isHotkeyHeld {
-                print("🔒 Aufnahme GELOCKT (\(config.displayString) + Leertaste)")
-                isLocked = true
-                onLockChange?(true)
-                return
-            }
-        }
-        
+        // Note: Space-lock is handled directly in the CGEventTap callback (startEventTap)
+        // to ensure the Space keydown is suppressed before reaching any text field.
+
         // Skip rest if we're in flags-based mode (Fn or modifier-only)
         if config.isFlagsBased { return }
         
