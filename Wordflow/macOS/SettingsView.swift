@@ -1897,7 +1897,7 @@ struct ProfileCardView: View {
 struct SystemSettingsView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("transcriptionModel") private var transcriptionModel = "whisper-large-v3-turbo"
-    @AppStorage("textCorrectionModel") private var textCorrectionModel = "llama-3.1-8b-instant"
+    @AppStorage("textCorrectionModel") private var textCorrectionModel = "llama-4-scout"
     @AppStorage("logLevel") private var logLevel = "info"
     @AppStorage("groqAPIKey") private var apiKey = ""
     @EnvironmentObject var appState: AppState
