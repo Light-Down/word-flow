@@ -14,9 +14,10 @@ struct PaywallView: View {
         VStack(spacing: 0) {
             // Header
             VStack(spacing: 12) {
-                Image(systemName: "mic.circle.fill")
-                    .font(.system(size: 52))
-                    .foregroundStyle(.primary)
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 44)
                     .padding(.top, 32)
 
                 Text("Dein Trial ist abgelaufen")
@@ -77,108 +78,6 @@ struct PaywallView: View {
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 20)
-        }
-        .frame(width: 340)
-        .background(.background)
-    }
-}
-
-// ─────────────────────────────────────────────
-// MARK: - LoginView
-// Erscheint wenn User noch nicht eingeloggt ist
-// ─────────────────────────────────────────────
-
-struct LoginView: View {
-    @ObservedObject private var supabase = SupabaseService.shared
-    @State private var email: String = ""
-    @State private var magicLinkSent: Bool = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 12) {
-                Image(systemName: "mic.circle.fill")
-                    .font(.system(size: 52))
-                    .foregroundStyle(.primary)
-                    .padding(.top, 32)
-
-                Text("Willkommen bei Wordflow")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("Melde dich mit deiner E-Mail an, um zu starten.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
-            .padding(.bottom, 28)
-
-            Divider()
-
-            if magicLinkSent {
-                // Bestätigung
-                VStack(spacing: 16) {
-                    Image(systemName: "envelope.badge.checkmark")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.green)
-
-                    Text("Link gesendet!")
-                        .font(.headline)
-
-                    Text("Schau in dein Postfach und klicke auf den Link.\nDanach öffnet sich Wordflow automatisch.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    Button("Andere E-Mail verwenden") {
-                        magicLinkSent = false
-                        email = ""
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .font(.footnote)
-                }
-                .padding(28)
-            } else {
-                // E-Mail Eingabe
-                VStack(spacing: 14) {
-                    TextField("deine@email.com", text: $email)
-                        .textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled()
-
-                    if let error = supabase.authError {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-
-                    Button(action: {
-                        Task {
-                            await supabase.sendMagicLink(email: email)
-                            if supabase.authError == nil {
-                                magicLinkSent = true
-                            }
-                        }
-                    }) {
-                        HStack {
-                            if supabase.isLoading {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "envelope")
-                            }
-                            Text("Magic Link senden")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(email.isEmpty || supabase.isLoading)
-                }
-                .padding(.horizontal, 28)
-                .padding(.vertical, 20)
-            }
         }
         .frame(width: 340)
         .background(.background)

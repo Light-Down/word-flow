@@ -7,8 +7,10 @@
 //
 
 import Foundation
+import Swift
 import AVFoundation
 import Combine
+import SwiftUI
 #if os(iOS)
 import UIKit
 #endif
@@ -78,8 +80,8 @@ class AudioRecorder: NSObject, ObservableObject {
             isRecording = true
             recordingStartTime = Date()
             
-            // Start level metering timer (30 Hz)
-            levelTimer = Timer.scheduledTimer(withTimeInterval: 1.0/30.0, repeats: true) { [weak self] _ in
+            // Start level metering timer (15 Hz) to reduce CPU load significantly
+            levelTimer = Timer.scheduledTimer(withTimeInterval: 1.0/15.0, repeats: true) { [weak self] _ in
                 self?.updateAudioLevel()
             }
             
@@ -102,7 +104,9 @@ class AudioRecorder: NSObject, ObservableObject {
         let normalizedPower = max(0, (power + 50) / 50)
         
         DispatchQueue.main.async {
-            self.audioLevel = normalizedPower
+            withAnimation(.linear(duration: 1.0/15.0)) {
+                self.audioLevel = normalizedPower
+            }
         }
     }
     

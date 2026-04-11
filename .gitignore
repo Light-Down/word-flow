@@ -36,3 +36,12 @@ website/wordflow.db-wal
 # Editor
 .vscode/
 .idea/
+
+# Local-only files
+dist/
+SwiftAgents-main/
+SwiftUI-Agent-Skill-main/
+swiftui-performance-audit/
+fix_all.swift
+new_general.swift
+test_modifier.swift

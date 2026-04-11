@@ -1,4 +1,5 @@
 import Foundation
+import AuthenticationServices
 
 // ─────────────────────────────────────────────
 // MARK: - Response Models
@@ -63,6 +64,8 @@ class SupabaseService: ObservableObject {
     @Published var authError: String? = nil
 
     private let sessionKey = "wordflow_supabase_session"
+    private let authContext = AuthPresentationContext()
+    private var webAuthSession: ASWebAuthenticationSession?
 
     private init() {
         // Gespeicherte Session laden beim Start
@@ -100,6 +103,22 @@ class SupabaseService: ObservableObject {
             authError = "Keine Verbindung. Bitte Internet prüfen."
         }
         isLoading = false
+    }
+
+    // ─────────────────────────────────────────────
+    // MARK: - OAuth (Google / Apple)
+    // ─────────────────────────────────────────────
+
+    func signInWithGoogle() {
+        guard let url = URL(string: "\(projectURL)/auth/v1/authorize?provider=google&redirect_to=wordflow://activate") else { return }
+        NSWorkspace.shared.open(url)
+        LogManager.shared.log("🌐 Google OAuth: Browser geöffnet")
+    }
+
+    func signInWithApple() {
+        guard let url = URL(string: "\(projectURL)/auth/v1/authorize?provider=apple&redirect_to=wordflow://activate") else { return }
+        NSWorkspace.shared.open(url)
+        LogManager.shared.log("🍎 Apple OAuth: Browser geöffnet")
     }
 
     // ─────────────────────────────────────────────
@@ -302,6 +321,135 @@ class SupabaseService: ObservableObject {
               let session = try? JSONDecoder().decode(SupabaseSession.self, from: data)
         else { return nil }
         return session
+    }
+
+    // ─────────────────────────────────────────────
+    // MARK: - E-Mail + Passwort Login
+    // ─────────────────────────────────────────────
+
+    func signInWithEmail(email: String, password: String) async {
+        isLoading = true
+        authError = nil
+
+        let url = URL(string: "\(projectURL)/auth/v1/token?grant_type=password")!
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.httpBody = try? JSONEncoder().encode(["email": email, "password": password])
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+            if statusCode == 400 {
+                authError = "E-Mail oder Passwort falsch."
+                isLoading = false
+                return
+            }
+
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let accessToken  = json["access_token"]  as? String,
+                  let refreshToken = json["refresh_token"] as? String
+            else {
+                authError = "Anmeldung fehlgeschlagen."
+                isLoading = false
+                return
+            }
+
+            let expiresAt = Date.now.timeIntervalSince1970 + (json["expires_in"] as? TimeInterval ?? 3600)
+            saveSession(SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: expiresAt))
+            isLoggedIn = true
+            LogManager.shared.log("✅ E-Mail Login erfolgreich")
+            await checkSession()
+        } catch {
+            authError = "Keine Verbindung. Bitte Internet prüfen."
+        }
+        isLoading = false
+    }
+
+    // ─────────────────────────────────────────────
+    // MARK: - E-Mail Registrierung
+    // ─────────────────────────────────────────────
+
+    func signUpWithEmail(email: String, password: String) async {
+        isLoading = true
+        authError = nil
+
+        let url = URL(string: "\(projectURL)/auth/v1/signup")!
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.httpBody = try? JSONEncoder().encode(["email": email, "password": password])
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+            if statusCode == 422 {
+                authError = "Diese E-Mail-Adresse ist bereits registriert."
+                isLoading = false
+                return
+            }
+
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let accessToken  = json["access_token"]  as? String,
+               let refreshToken = json["refresh_token"] as? String {
+                // E-Mail-Bestätigung deaktiviert → sofort eingeloggt
+                let expiresAt = Date.now.timeIntervalSince1970 + (json["expires_in"] as? TimeInterval ?? 3600)
+                saveSession(SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: expiresAt))
+                isLoggedIn = true
+                await checkSession()
+            } else {
+                // E-Mail-Bestätigung aktiv → User muss zuerst bestätigen
+                authError = "✉️ Bitte bestätige deine E-Mail-Adresse. Dann kannst du dich anmelden."
+            }
+            LogManager.shared.log("📝 Registrierung abgeschlossen für \(email)")
+        } catch {
+            authError = "Keine Verbindung. Bitte Internet prüfen."
+        }
+        isLoading = false
+    }
+
+    // ─────────────────────────────────────────────
+    // MARK: - Google Sign-In (OAuth via Browser)
+    // ─────────────────────────────────────────────
+
+    func signInWithGoogle() async {
+        isLoading = true
+        authError = nil
+
+        let authURLString = "\(projectURL)/auth/v1/authorize?provider=google&redirect_to=wordflow://activate"
+        guard let authURL = URL(string: authURLString) else {
+            isLoading = false
+            return
+        }
+
+        do {
+            let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+                let session = ASWebAuthenticationSession(
+                    url: authURL,
+                    callbackURLScheme: "wordflow"
+                ) { url, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if let url {
+                        continuation.resume(returning: url)
+                    }
+                }
+                session.prefersEphemeralWebBrowserSession = false
+                session.presentationContextProvider = authContext
+                self.webAuthSession = session
+                session.start()
+            }
+            webAuthSession = nil
+            await handleDeepLink(url: callbackURL)
+        } catch {
+            authError = "Google Sign-In fehlgeschlagen."
+            LogManager.shared.log("❌ Google Sign-In: \(error.localizedDescription)")
+        }
+        isLoading = false
     }
 
     private func isNewer(remote: String, current: String) -> Bool {

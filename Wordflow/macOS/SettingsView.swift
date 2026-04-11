@@ -36,208 +36,44 @@ struct SettingsWindowChromeConfigurator: NSViewRepresentable {
 }
 
 struct SettingsView: View {
-    @Environment(\.openWindow) private var openWindow
     @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("showWelcomeSheetOnSettingsOpen") private var showWelcomeSheetOnSettingsOpen = false
-    @State private var hasCopiedInviteLink = false
-    
-    // Tab Selection
-    @State private var selectedTab: SettingsTab? = .general
-    
-    enum SettingsTab: String, Identifiable {
-        case general, ai, profile, behavior, statistics, system
-        
+    @State private var selectedTab: SettingsTab = .general
+    enum SettingsTab: String, Identifiable, Hashable {
+        case general, profile, system, statistics, account
         var id: String { rawValue }
-        
         func title(language: String) -> String {
             switch self {
-            case .general: return "Setup"
-            case .ai: return language == "EN" ? "Transcription & AI" : "Transkription & KI"
-            case .profile: return language == "EN" ? "Profile" : "Profil"
-            case .behavior: return language == "EN" ? "Behavior" : "Verhalten"
-            case .statistics: return language == "EN" ? "Statistics" : "Statistiken"
+            case .general: return language == "EN" ? "General" : "Allgemeines"
+            case .profile: return language == "EN" ? "Prompts" : "Prompt-Profile"
             case .system: return "System"
+            case .statistics: return language == "EN" ? "Statistics" : "Statistiken"
+            case .account: return language == "EN" ? "Account" : "Account"
             }
         }
-        
         var icon: String {
             switch self {
-            case .general: return "gear"
-            case .ai: return "waveform.path.ecg"
-            case .profile: return "person.crop.circle"
-            case .behavior: return "keyboard"
-            case .statistics: return "chart.bar.xaxis"
+            case .general: return "gearshape"
+            case .profile: return "text.badge.plus"
             case .system: return "cpu"
+            case .statistics: return "chart.bar.xaxis"
+            case .account: return "person.crop.circle"
             }
         }
     }
-
-    // Main tabs shown in the top section of the sidebar
-    private static let mainTabs: [SettingsTab] = [.general, .profile, .behavior, .statistics, .system]
-    // Advanced tabs shown below a divider
-    private static let advancedTabs: [SettingsTab] = [.ai]
-    
     var body: some View {
-        HStack(spacing: 0) {
-            // MARK: - Sidebar
-            VStack(spacing: 0) {
-                // App branding header (in traffic-light area)
-                HStack(spacing: 0) {
-                    // Space for traffic light buttons
-                    Color.clear
-                        .frame(width: 70, height: 38)
-                    
-                    HStack(spacing: 8) {
-                        if let appIcon = NSImage(named: "AppIcon-1024") {
-                            Image(nsImage: appIcon)
-                                .resizable()
-                                .frame(width: 22, height: 22)
-                                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                        } else {
-                            Image(systemName: "waveform.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(WordflowTheme.primary)
-                        }
-                        Text("Wordflow")
-                            .font(.system(size: 14, weight: .semibold, design: .serif))
-                            .foregroundColor(.primary)
-                    }
-                    
-                    Spacer()
-                }
-                .frame(height: 38)
-
-                VStack(spacing: 2) {
-                    ForEach(Self.mainTabs, id: \.rawValue) { tab in
-                        sidebarButton(for: tab)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-
-                // Divider between main and advanced
-                Divider()
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .opacity(0.5)
-
-                VStack(spacing: 2) {
-                    ForEach(Self.advancedTabs, id: \.rawValue) { tab in
-                        sidebarButton(for: tab)
-                    }
-                }
-                .padding(.horizontal, 12)
-
-                Spacer()
-
-                // "Invite Friends" button at the bottom
-                Divider()
-                    .padding(.horizontal, 16)
-                    .opacity(0.5)
-
-                Button {
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.setString("https://word-flow.store", forType: .string)
-                    hasCopiedInviteLink = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        hasCopiedInviteLink = false
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: hasCopiedInviteLink ? "checkmark.circle.fill" : "person.2")
-                            .font(.system(size: 14))
-                            .foregroundColor(hasCopiedInviteLink ? .green : WordflowTheme.onSurfaceVariant)
-                            .frame(width: 20)
-                        Text(hasCopiedInviteLink
-                             ? (appLanguage == "EN" ? "Link copied!" : "Link kopiert!")
-                             : (appLanguage == "EN" ? "Invite Friends" : "Freunde einladen"))
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(hasCopiedInviteLink ? .green : WordflowTheme.onSurfaceVariant)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-            }
-            .frame(minWidth: 220, idealWidth: 236, maxWidth: 252)
-            .background(WordflowTheme.background)
-            .overlay(alignment: .trailing) {
-                Rectangle()
-                    .fill(WordflowTheme.outline.opacity(0.4))
-                    .frame(width: 0.5)
-            }
-            .symbolRenderingMode(.hierarchical)
-
-            // MARK: - Content
-            Group {
-                if let tab = selectedTab {
-                    switch tab {
-                    case .general: GeneralSettingsView(onOpenWelcome: {
-                        openQuickSetupWindow()
-                    })
-                    case .ai: AISettingsView()
-                    case .profile: ProfileSettingsView()
-                    case .behavior: BehaviorSettingsView()
-                    case .statistics: StatisticsView()
-                    case .system: SystemSettingsView()
-                    }
-                } else {
-                    Text(appLanguage == "EN" ? "Select an option" : "Bitte wählen")
-                        .foregroundColor(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabView(selection: $selectedTab) { GeneralSettingsView(onOpenWelcome: { showWelcomeSheetOnSettingsOpen = true }) .tabItem { Label(SettingsTab.general.title(language: appLanguage), systemImage: SettingsTab.general.icon) } .tag(SettingsTab.general)
+            ProfileSettingsView() .tabItem { Label(SettingsTab.profile.title(language: appLanguage), systemImage: SettingsTab.profile.icon) } .tag(SettingsTab.profile)
+            SystemSettingsView() .tabItem { Label(SettingsTab.system.title(language: appLanguage), systemImage: SettingsTab.system.icon) } .tag(SettingsTab.system)
+            StatisticsView() .tabItem { Label(SettingsTab.statistics.title(language: appLanguage), systemImage: SettingsTab.statistics.icon) } .tag(SettingsTab.statistics)
+            AccountSettingsView() .tabItem { Label(SettingsTab.account.title(language: appLanguage), systemImage: SettingsTab.account.icon) } .tag(SettingsTab.account)
         }
-        .tint(WordflowTheme.primary)
-        .background(WordflowTheme.background)
-        .frame(minWidth: 700, minHeight: 450)
-        .background(SettingsWindowChromeConfigurator())
-        .onAppear {
-            if showWelcomeSheetOnSettingsOpen {
-                openQuickSetupWindow()
-                showWelcomeSheetOnSettingsOpen = false
-            }
-        }
-    }
-
-    // MARK: - Sidebar Button (Apple System Settings Style)
-    @ViewBuilder
-    private func sidebarButton(for tab: SettingsTab) -> some View {
-        let isSelected = selectedTab == tab
-        Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                selectedTab = tab
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: 15))
-                    .foregroundColor(isSelected ? WordflowTheme.primary : WordflowTheme.onSurfaceVariant)
-                    .frame(width: 20)
-                Text(tab.title(language: appLanguage))
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? WordflowTheme.onSurface : WordflowTheme.onSurfaceVariant)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(isSelected ? WordflowTheme.primary.opacity(0.12) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func openQuickSetupWindow() {
-        openWindow(id: "quicksetup")
+        .frame(width: 700, height: 500)
+        .fixedSize()
+        .background(.ultraThinMaterial)
+        .sheet(isPresented: $showWelcomeSheetOnSettingsOpen) { WelcomeOnboardingSheet() }
     }
 }
-
 // MARK: - Design System Components
 
 struct SettingsCard<Content: View>: View {
@@ -311,176 +147,42 @@ struct SettingsRow<Content: View>: View {
 // MARK: - 1. General Settings
 struct GeneralSettingsView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
-    @AppStorage("groqAPIKey") private var apiKey = ""
-    @State private var showingAPIKey = false
-    @State private var showingGuide = false
-    @State private var isHoveringGuide = false
+    @AppStorage("autoPasteEnabled") private var autoPasteEnabled = true
+    @AppStorage("soundsEnabled") private var soundsEnabled = true
+    @State private var currentHotkey = HotkeyManager.loadConfig()
+    @State private var isRecordingHotkey = false
     let onOpenWelcome: () -> Void
-    
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // MARK: - Hero Header
-                VStack(spacing: 16) {
-                    HStack(spacing: 14) {
-                        // App Icon
-                        if let appIcon = NSImage(named: "AppIcon-1024") {
-                            Image(nsImage: appIcon)
-                                .resizable()
-                                .frame(width: 56, height: 56)
-                                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-                                .shadow(color: WordflowTheme.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Wordflow")
-                                .font(.system(size: 24, weight: .semibold, design: .serif))
-                                .foregroundColor(.primary)
-                            Text(appLanguage == "EN" ? "Your voice, your words." : "Deine Stimme, deine Worte.")
-                                .font(.system(size: 13, design: .serif))
-                                .foregroundColor(.secondary)
-                        }
+        Form {
+            Section { Button { onOpenWelcome() } label: { HStack(spacing: 20) { Image(systemName: "play.circle.fill").font(.system(size: 40)).foregroundStyle(WordflowTheme.primary).shadow(color: WordflowTheme.primary.opacity(0.4), radius: 8, x: 0, y: 4)
+                        VStack(alignment: .leading, spacing: 4) { Text(appLanguage == "EN" ? "New here? Start Setup Guide" : "Neu hier? Starte den Setup-Guide").font(.system(size: 18, weight: .bold)).foregroundStyle(WordflowTheme.onSurface); Text(appLanguage == "EN" ? "Step-by-step walkthrough of features" : "Schritt-für-Schritt Anleitung der Funktionen").font(.system(size: 13, weight: .medium)).foregroundStyle(WordflowTheme.onSurfaceVariant) }
                         Spacer()
-                    }
-                    
-                    // Setup Guide Button
-                    Button {
-                        onOpenWelcome()
-                    } label: {
-                        HStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(WordflowTheme.primary)
-                                    .frame(width: 36, height: 36)
-                                Image(systemName: "play.fill")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.white)
-                                    .offset(x: 1)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appLanguage == "EN" ? "Open Setup Guide" : "Setup-Guide öffnen")
-                                    .font(.system(size: 14, weight: .semibold, design: .serif))
-                                    .foregroundColor(.primary)
-                                Text(appLanguage == "EN" ? "Step-by-step walkthrough" : "Schritt-für-Schritt Anleitung")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary.opacity(0.5))
+                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(WordflowTheme.onSurfaceVariant.opacity(0.8))
+                    }.padding(.vertical, 12).contentShape(Rectangle()) }.buttonStyle(.plain) }
+            Section { HStack { Text(appLanguage == "EN" ? "Language:" : "Sprache:"); Spacer(); Picker("", selection: $appLanguage) { Text("Deutsch").tag("DE"); Text("English").tag("EN") }.labelsHidden().pickerStyle(.menu).frame(width: 160) } }
+            Section(appLanguage == "EN" ? "Automation" : "Automatisierung") { Toggle(appLanguage == "EN" ? "Auto-Paste Text" : "Text automatisch einfügen", isOn: $autoPasteEnabled).toggleStyle(.switch); Toggle(appLanguage == "EN" ? "Play Sound Effects" : "Soundeffekte abspielen", isOn: $soundsEnabled).toggleStyle(.switch) }
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { isRecordingHotkey.toggle() } } label: {
+                            HStack(spacing: 8) { Image(systemName: isRecordingHotkey ? "record.circle" : "keyboard").foregroundStyle(isRecordingHotkey ? .red : .primary).symbolEffect(.pulse, options: .repeating, isActive: isRecordingHotkey)
+                                Text(isRecordingHotkey ? (appLanguage == "EN" ? "Press keys..." : "Taste drücken...") : currentHotkey.displayString).monospaced().font(.system(size: 13, weight: .semibold))
+                            }.padding(.horizontal, 16).padding(.vertical, 8).background(isRecordingHotkey ? Color.red.opacity(0.1) : WordflowTheme.primary.opacity(0.1)).foregroundColor(isRecordingHotkey ? .red : WordflowTheme.primary).clipShape(.rect(cornerRadius: 8, style: .continuous))
+                        }.buttonStyle(.plain)
+                        HStack(spacing: 8) { Text(appLanguage == "EN" ? "or" : "oder").font(.system(size: 13)).foregroundStyle(.secondary).padding(.horizontal, 4)
+                            presetButton(label: "Fn", modifiers: [], includeFn: true)
+                            presetButton(label: "⇧ + ⌥", modifiers: [.shift, .option])
+                            presetButton(label: "⇧ + ⌃", modifiers: [.shift, .control])
+                            presetButton(label: "⇧ + ⌘", modifiers: [.shift, .command])
                         }
-                        .padding(14)
-                        .background(WordflowTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(isHoveringGuide ? WordflowTheme.primary.opacity(0.3) : WordflowTheme.primary.opacity(0.1), lineWidth: 1)
-                        )
-                        .scaleEffect(isHoveringGuide ? 1.005 : 1.0)
+                        if isRecordingHotkey { HotkeyRecorderView(isRecording: $isRecordingHotkey, onHotkeyRecorded: { config in var adjustedConfig = config; adjustedConfig.useModifierOnly = false; currentHotkey = adjustedConfig; HotkeyManager.saveConfig(adjustedConfig); withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { isRecordingHotkey = false } }).frame(width: 0, height: 0) }
                     }
-                    .buttonStyle(.plain)
-                    .onHover { hovering in
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            isHoveringGuide = hovering
-                        }
-                    }
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            WordflowTheme.primary.opacity(0.04),
-                            WordflowTheme.background
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-
-                // MARK: - Settings Cards
-                VStack(alignment: .leading, spacing: 20) {
-                    SettingsCard(title: appLanguage == "EN" ? "Preferences" : "Einstellungen") {
-                        SettingsRow(title: appLanguage == "EN" ? "Language" : "Sprache", showDivider: false) {
-                            Picker("", selection: $appLanguage) {
-                                Text("Deutsch").tag("DE")
-                                Text("English").tag("EN")
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: 140)
-                        }
-                    }
-                    
-                    SettingsCard(title: appLanguage == "EN" ? "API Configuration" : "API Konfiguration") {
-                        SettingsRow(title: "Groq API Key", showDivider: true) {
-                            HStack(spacing: 8) {
-                                if showingAPIKey {
-                                    TextField("API Key", text: $apiKey)
-                                        .textFieldStyle(.roundedBorder)
-                                } else {
-                                    SecureField("API Key", text: $apiKey)
-                                        .textFieldStyle(.roundedBorder)
-                                }
-                                
-                                Button {
-                                    showingAPIKey.toggle()
-                                } label: {
-                                    Image(systemName: showingAPIKey ? "eye.slash" : "eye")
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(.borderless)
-                            }
-                            .frame(width: 280)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(appLanguage == "EN" ? "Need an API Key?" : "Noch kein API Key?")
-                                .font(.system(size: 14, weight: .semibold, design: .serif))
-                                .foregroundColor(.primary)
-                            
-                            Text(appLanguage == "EN" ? "Get your free Access Key in 3 simple steps." : "Erstelle deinen kostenlosen Zugang in 3 einfachen Schritten.")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                                .padding(.bottom, 6)
-                            
-                            HStack {
-                                Link(destination: URL(string: "https://console.groq.com")!) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "arrow.up.right.square")
-                                            .font(.system(size: 12))
-                                        Text("console.groq.com")
-                                            .font(.system(size: 13))
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                Button(appLanguage == "EN" ? "Open Guide" : "Anleitung öffnen") {
-                                    showingGuide = true
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(WordflowTheme.primary)
-                                .controlSize(.small)
-                            }
-                        }
-                        .padding(16)
-                        .background(WordflowTheme.primary.opacity(0.02))
-                    }
-                }
-                .padding(24)
-                .frame(maxWidth: 700)
-            }
-        }
-        .background(WordflowTheme.background)
-        .sheet(isPresented: $showingGuide) {
-            APIGuideSheet(appLanguage: appLanguage)
-        }
+                }.padding(.vertical, 4)
+            } header: { Text(appLanguage == "EN" ? "Activation Shortcut" : "Aktivierungs-Shortcut") } footer: { Text(appLanguage == "EN" ? "Use this shortcut to start recording." : "Nutze diesen Shortcut, um die Aufnahme zu starten.").font(.footnote).foregroundColor(.secondary) }
+        }.formStyle(.grouped).padding(16)
     }
+    @ViewBuilder private func presetButton(label: String, modifiers: NSEvent.ModifierFlags, includeFn: Bool = false) -> some View { let isMatch = currentHotkey.useModifierOnly && currentHotkey.useFnKey == includeFn && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(modifiers.intersection([.shift, .option, .control, .command])) && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).isSubset(of: modifiers.union([.function])); Button { let config = HotkeyConfig(modifiers: modifiers.rawValue, keyCode: 0, useFnKey: includeFn, useModifierOnly: true); currentHotkey = config; HotkeyManager.saveConfig(config) } label: { Text(label).font(.system(size: 13, weight: isMatch ? .bold : .medium)).foregroundColor(isMatch ? WordflowTheme.primary : .secondary).padding(.horizontal, 10).padding(.vertical, 6).background(isMatch ? WordflowTheme.primary.opacity(0.15) : Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(isMatch ? WordflowTheme.primary.opacity(0.3) : Color.clear, lineWidth: 1)) }.buttonStyle(.plain) }
 }
-
-
 struct WelcomeOnboardingSheet: View {
     @Environment(\.dismiss) var dismiss
     @AppStorage("appLanguage") private var appLanguage = "EN"
@@ -488,6 +190,7 @@ struct WelcomeOnboardingSheet: View {
     @AppStorage("hasCompletedInitialLanguageChoice") private var hasCompletedInitialLanguageChoice = false
     @AppStorage("showWelcomeSheetOnSettingsOpen") private var showWelcomeSheetOnSettingsOpen = false
     @AppStorage("quickSetupResumeAfterRestart") private var quickSetupResumeAfterRestart = false
+    @AppStorage("quickSetupLaunchStep") private var quickSetupLaunchStep = ""
 
     @State private var currentStep: QuickSetupStep = .language
     @State private var apiValidationState: APIValidationState = .idle
@@ -495,6 +198,7 @@ struct WelcomeOnboardingSheet: View {
     @State private var hasAccessibilityPermission = AXIsProcessTrusted()
     @State private var microphoneStatus = AVCaptureDevice.authorizationStatus(for: .audio)
     @State private var isFinishingForManualRestart = false
+    @State private var restartErrorMessage = ""
     @State private var currentHotkeyConfig = HotkeyManager.loadConfig()
     @State private var isRecordingNewHotkey = false
     @State private var testFieldText = ""
@@ -616,10 +320,20 @@ struct WelcomeOnboardingSheet: View {
             refreshPermissionState()
             selectedLanguage = (appLanguage == "DE" || appLanguage == "EN") ? appLanguage : "EN"
 
-            if quickSetupResumeAfterRestart {
+            LogManager.shared.log("🧭 Quick setup onAppear: launchStep='\(quickSetupLaunchStep)', resumeFlag=\(quickSetupResumeAfterRestart)")
+
+            if quickSetupLaunchStep == "hotkey" {
+                currentStep = .hotkey
+                quickSetupLaunchStep = ""
+                quickSetupResumeAfterRestart = false
+                showWelcomeSheetOnSettingsOpen = false
+                hasCompletedInitialLanguageChoice = true
+                hasSelectedLanguageInStep = true
+            } else if quickSetupResumeAfterRestart {
+                // Backward-compatibility fallback for stale flags from older builds.
                 currentStep = .hotkey
                 quickSetupResumeAfterRestart = false
-                showWelcomeSheetOnSettingsOpen = true
+                showWelcomeSheetOnSettingsOpen = false
                 hasCompletedInitialLanguageChoice = true
                 hasSelectedLanguageInStep = true
             } else if hasCompletedInitialLanguageChoice {
@@ -1113,6 +827,12 @@ struct WelcomeOnboardingSheet: View {
                         .foregroundColor(.secondary)
                 }
             }
+
+            if !restartErrorMessage.isEmpty {
+                Text(restartErrorMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
         }
     }
 
@@ -1604,6 +1324,41 @@ struct WelcomeOnboardingSheet: View {
             )
 
             VStack(alignment: .leading, spacing: 10) {
+                Text(appLanguage == "EN" ? "Available Profiles" : "Verfuegbare Profile")
+                    .font(.system(size: 13, weight: .semibold, design: .serif))
+                    .foregroundColor(.secondary)
+
+                VStack(spacing: 0) {
+                    doneProfileRow(
+                        title: "Smart Casual",
+                        body: appLanguage == "EN"
+                            ? "Keeps your natural vibe, removes stutters, and fixes punctuation. Great for everyday messages."
+                            : "Behaelt deinen natuerlichen Vibe bei, entfernt Stotterer und korrigiert die Zeichensetzung. Perfekt fuer alltaegliche Nachrichten.",
+                        showDivider: true
+                    )
+
+                    doneProfileRow(
+                        title: "Smart Business",
+                        body: appLanguage == "EN"
+                            ? "Turns spoken thoughts into clear, logical text suitable for business contexts."
+                            : "Verwandelt gesprochene Gedanken in klaren, logischen Text. Ideal fuer das Business-Umfeld.",
+                        showDivider: true
+                    )
+
+                    doneProfileRow(
+                        title: "Professional",
+                        body: appLanguage == "EN"
+                            ? "Produces highly polished, formal text perfect for professional emails and documents."
+                            : "Erzeugt sehr formellen, feingeschliffenen Text. Perfekt fuer professionelle E-Mails und Dokumente.",
+                        showDivider: false
+                    )
+                }
+                .background(WordflowTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(WordflowTheme.primary.opacity(0.12), lineWidth: 1))
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text(appLanguage == "EN" ? "Use Cases To Start With" : "Direkt starten mit")
                     .font(.system(size: 13, weight: .semibold, design: .serif))
                     .foregroundColor(.secondary)
@@ -1708,6 +1463,37 @@ struct WelcomeOnboardingSheet: View {
         }
     }
 
+    private func doneProfileRow(title: String, body: String, showDivider: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold, design: .serif))
+                    .foregroundColor(WordflowTheme.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(WordflowTheme.primary.opacity(0.08))
+                    .clipShape(Capsule())
+
+                Text(body)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if showDivider {
+                Divider()
+                    .padding(.leading, 14)
+                    .opacity(0.45)
+            }
+        }
+    }
+
     private func onboardingStep(number: String, title: String, detail: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Text(number)
@@ -1781,6 +1567,7 @@ struct WelcomeOnboardingSheet: View {
         }
 
         if currentStep == .restart {
+            restartErrorMessage = ""
             autoRestartApp()
             return
         }
@@ -1812,6 +1599,11 @@ struct WelcomeOnboardingSheet: View {
     }
 
     private func closeQuickSetupWindow() {
+        // Always clear reopen flags first so closing the wizard cannot re-trigger itself.
+        showWelcomeSheetOnSettingsOpen = false
+        quickSetupResumeAfterRestart = false
+        quickSetupLaunchStep = ""
+
         if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "wordflow.quicksetup" }) {
             window.close()
             return
@@ -1905,14 +1697,15 @@ struct WelcomeOnboardingSheet: View {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.8))
             refreshPermissionState()
         }
     }
 
     private func requestMicrophonePermission() {
         AVCaptureDevice.requestAccess(for: .audio) { _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 refreshPermissionState()
             }
         }
@@ -1924,24 +1717,28 @@ struct WelcomeOnboardingSheet: View {
         guard !isFinishingForManualRestart else { return }
         isFinishingForManualRestart = true
 
+        quickSetupLaunchStep = "hotkey"
         quickSetupResumeAfterRestart = true
-        showWelcomeSheetOnSettingsOpen = true
+        showWelcomeSheetOnSettingsOpen = false
+        UserDefaults.standard.synchronize()
+        (NSApp.delegate as? AppDelegate)?.requestQuickSetupRelaunchOnTerminate()
 
-        LogManager.shared.log("Auto-restart: spawning new instance and terminating")
+        LogManager.shared.log("Auto-restart: flags persisted, requesting app termination")
 
-        let bundlePath = Bundle.main.bundlePath
-        let script = "sleep 1.5 && open '\(bundlePath)'"
-        let process = Process()
-        process.launchPath = "/bin/sh"
-        process.arguments = ["-c", script]
-        do {
-            try process.run()
-        } catch {
-            LogManager.shared.log("Failed to spawn restart process: \(error)")
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.35))
+            NSApplication.shared.terminate(nil)
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NSApplication.shared.terminate(nil)
+        // If normal terminate gets stuck, enforce restart without leaving spinner forever.
+        Task {
+            try? await Task.sleep(for: .seconds(1.8))
+
+            if !NSRunningApplication.current.isTerminated {
+                LogManager.shared.log("Auto-restart timeout: escalating to forced exit")
+                (NSApp.delegate as? AppDelegate)?.requestReplacementRelaunchIfNeeded()
+                exit(0)
+            }
         }
     }
 }
@@ -2075,856 +1872,144 @@ struct GuideStepView: View {
     }
 }
 
-// MARK: - 2. AI Settings
-struct AISettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "EN"
-    @AppStorage("transcriptionProvider") private var transcriptionProvider = "Groq"
-    @AppStorage("enableTextCorrection") private var enableTextCorrection = false
-    @AppStorage("correctionProvider") private var correctionProvider = "Groq"
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                SettingsCard(title: appLanguage == "EN" ? "Core Services" : "Basis-Dienste") {
-                    SettingsRow(title: appLanguage == "EN" ? "Transcription:" : "Transkription:", showDivider: true) {
-                        Picker("", selection: $transcriptionProvider) {
-                            Text("Groq (Whisper v3)").tag("Groq")
-                            Text("Groq (Whisper v3 Turbo)").tag("GroqTurbo")
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
-                    }
-                    
-                    SettingsRow(title: appLanguage == "EN" ? "Enable AI Correction" : "KI-Korrektur aktivieren", showDivider: false) {
-                        Toggle("", isOn: $enableTextCorrection)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-                }
-                
-                if enableTextCorrection {
-                    SettingsCard(title: appLanguage == "EN" ? "Correction Model" : "Korrektur-Modell") {
-                        SettingsRow(title: appLanguage == "EN" ? "Model:" : "Modell:", showDivider: true) {
-                            Picker("", selection: $correctionProvider) {
-                                Group {
-                                    Text("Llama 3.3 70B (Versatile)").tag("llama-3.3-70b-versatile")
-                                    Text("Llama 3.1 8B (Instant)").tag("llama-3.1-8b-instant")
-                                }
-                                Group {
-                                    Text("Llama 4 Scout (Preview)").tag("meta-llama/llama-4-scout-17b-16e-instruct")
-                                    Text("Llama 4 Maverick (Preview)").tag("meta-llama/llama-4-maverick-17b-128e-instruct")
-                                }
-                                Group {
-                                    Text("GPT OS 120B").tag("openai/gpt-oss-120b")
-                                    Text("GPT OS 20B").tag("openai/gpt-oss-20b")
-                                }
-                                Group {
-                                    Text("Qwen 3 32B (Latest)").tag("qwen/qwen3-32b")
-                                    Text("Gemma 2 9B").tag("gemma2-9b-it")
-                                }
-                                Group {
-                                    Text("Moonshot Kimi k2 (Latest)").tag("moonshotai/kimi-k2-instruct")
-                                    Text("Moonshot Kimi k2 (0905)").tag("moonshotai/kimi-k2-instruct-0905")
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: 200)
-                        }
-                        
-                    }
-                }
-            }
-            .padding(24)
-            .frame(maxWidth: 700)
-        }
-        .background(WordflowTheme.background)
-    }
-}
-
 // MARK: - 3. Profile Settings
 struct ProfileSettingsView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
     @ObservedObject var promptManager = PromptManager.shared
-
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                SettingsCard(title: appLanguage == "EN" ? "Text Refinement" : "Textveredelung") {
-                    SettingsRow(title: appLanguage == "EN" ? "Profile:" : "Profil:", showDivider: false) {
-                        Picker("", selection: Binding(
-                            get: { promptManager.selectedProfileId ?? UUID() },
-                            set: { promptManager.selectProfile(id: $0) }
-                        )) {
-                            ForEach(promptManager.profiles) { profile in
-                                Text(profile.name).tag(profile.id)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 220)
-                    }
-                }
-
-                SettingsCard(title: appLanguage == "EN" ? "More Coming" : "Mehr folgt") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(appLanguage == "EN" ? "More profile extensions are coming soon." : "Weitere Profil-Erweiterungen folgen bald.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .padding(24)
-            .frame(maxWidth: 700)
-        }
-        .background(WordflowTheme.background)
+        Form {
+            Section { VStack(spacing: 12) { ForEach(promptManager.profiles) { profile in ProfileCardView(profile: profile, isSelected: promptManager.selectedProfileId == profile.id, appLanguage: appLanguage) { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { promptManager.selectProfile(id: profile.id) } } } }.padding(.vertical, 4) } header: { Text(appLanguage == "EN" ? "AI Text Refinement" : "KI-Textveredelung") } footer: { Text(appLanguage == "EN" ? "Choose how the AI should rewrite your dictations. More profiles coming soon." : "Wähle, wie die KI deine Diktate umschreiben soll. Weitere Profile folgen in Kürze.").font(.footnote).foregroundStyle(.secondary).padding(.top, 4) }
+        }.formStyle(.grouped).padding(16)
     }
 }
-
-
-// MARK: - 4. Behavior Settings
-struct BehaviorSettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage = "EN"
-    @AppStorage("autoPasteEnabled") private var autoPasteEnabled = true
-    @AppStorage("soundsEnabled") private var soundsEnabled = true
-    
-    @State private var currentHotkey = HotkeyManager.loadConfig()
-    @State private var isRecordingHotkey = false
-    
+struct ProfileCardView: View {
+    let profile: PromptProfile; let isSelected: Bool; let appLanguage: String; let action: () -> Void
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                SettingsCard(title: appLanguage == "EN" ? "Activation Hotkey" : "Aktivierungs-Hotkey") {
-                    if isRecordingHotkey {
-                        // Recording state with presets
-                        VStack(spacing: 18) {
-                            Text(appLanguage == "EN" ? "Set a new shortcut" : "Neuen Shortcut festlegen")
-                                .font(.system(size: 15, weight: .semibold, design: .serif))
-                                .foregroundColor(WordflowTheme.primary)
-
-                            // Hint text
-                            Text(appLanguage == "EN"
-                                 ? "Pick a modifier combo below, or press a modifier (⌘, ⌃, ⌥, ⇧) + key to set a custom shortcut."
-                                 : "Wähle eine Modifier-Kombi unten, oder drücke Modifier (⌘, ⌃, ⌥, ⇧) + Taste für einen eigenen Shortcut.")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 12)
-
-                            // Listening indicator
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(WordflowTheme.primary)
-                                    .frame(width: 6, height: 6)
-                                Text(appLanguage == "EN" ? "Listening for keys..." : "Warte auf Eingabe...")
-                                    .monospaced()
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 8)
-                            .background(HotkeyRecorderView(isRecording: $isRecordingHotkey, onHotkeyRecorded: { config in
-                                // HotkeyRecorder produces modifier+key combos
-                                var adjustedConfig = config
-                                adjustedConfig.useModifierOnly = false
-                                currentHotkey = adjustedConfig
-                                HotkeyManager.saveConfig(adjustedConfig)
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    isRecordingHotkey = false
-                                }
-                            }))
-
-                            Divider()
-                                .padding(.horizontal, 40)
-                                .opacity(0.35)
-
-                            // Quick-Select Presets
-                            VStack(spacing: 10) {
-                                Text(appLanguage == "EN" ? "Or pick a preset:" : "Oder wähle einen Vorschlag:")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary)
-
-                                HStack(spacing: 10) {
-                                    // Preset: Fn (Default)
-                                    presetButton(
-                                        label: "🌐 Fn",
-                                        isCurrentHotkey: currentHotkey.useFnKey
-                                    ) {
-                                        applyPreset(HotkeyConfig.defaultConfig)
-                                    }
-
-                                    // Preset: ⇧ + ⌥ (Shift + Option)
-                                    presetButton(
-                                        label: "⇧ ⌥",
-                                        isCurrentHotkey: currentHotkey.useModifierOnly
-                                            && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(.shift)
-                                            && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(.option)
-                                    ) {
-                                        applyPreset(HotkeyConfig(
-                                            modifiers: NSEvent.ModifierFlags([.shift, .option]).rawValue,
-                                            keyCode: 0,
-                                            useFnKey: false,
-                                            useModifierOnly: true
-                                        ))
-                                    }
-
-                                    // Preset: ⇧ + ⌃ (Shift + Control)
-                                    presetButton(
-                                        label: "⇧ ⌃",
-                                        isCurrentHotkey: currentHotkey.useModifierOnly
-                                            && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(.shift)
-                                            && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(.control)
-                                    ) {
-                                        applyPreset(HotkeyConfig(
-                                            modifiers: NSEvent.ModifierFlags([.shift, .control]).rawValue,
-                                            keyCode: 0,
-                                            useFnKey: false,
-                                            useModifierOnly: true
-                                        ))
-                                    }
-
-                                    // Preset: ⇧ + ⌘ (Shift + Command)
-                                    presetButton(
-                                        label: "⇧ ⌘",
-                                        isCurrentHotkey: currentHotkey.useModifierOnly
-                                            && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(.shift)
-                                            && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(.command)
-                                    ) {
-                                        applyPreset(HotkeyConfig(
-                                            modifiers: NSEvent.ModifierFlags([.shift, .command]).rawValue,
-                                            keyCode: 0,
-                                            useFnKey: false,
-                                            useModifierOnly: true
-                                        ))
-                                    }
-                                }
-                            }
-
-                            Button(appLanguage == "EN" ? "Cancel" : "Abbrechen") {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    isRecordingHotkey = false
-                                }
-                            }
-                            .buttonStyle(.borderless)
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                            .padding(.top, 2)
-                        }
-                        .padding(20)
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        // Display current hotkey
-                        VStack(spacing: 0) {
-                            // Visual hotkey display
-                            VStack(spacing: 12) {
-                                Text(appLanguage == "EN" ? "Current Hotkey" : "Aktueller Hotkey")
-                                    .font(.system(size: 12, weight: .semibold, design: .serif))
-                                    .foregroundColor(.secondary)
-                                    .textCase(.uppercase)
-                                    .tracking(1.2)
-
-                                hotkeyKeycapDisplay
-                            }
-                            .padding(.vertical, 24)
-                            .padding(.horizontal, 16)
-                            .frame(maxWidth: .infinity)
-                            .background(WordflowTheme.primary.opacity(0.02))
-
-                            Divider().opacity(0.35)
-
-                            // Action row
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(appLanguage == "EN" ? "Change shortcut" : "Shortcut ändern")
-                                        .font(.system(size: 13, weight: .semibold, design: .serif))
-                                        .foregroundColor(.primary)
-                                    Text(appLanguage == "EN" ? "Choose a modifier combo or custom shortcut." : "Wähle eine Modifier-Kombi oder eigenen Shortcut.")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Spacer()
-
-                                Button {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        isRecordingHotkey = true
-                                    }
-                                } label: {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "keyboard")
-                                            .font(.system(size: 12))
-                                        Text(appLanguage == "EN" ? "Change" : "Ändern")
-                                            .font(.system(size: 13, weight: .medium))
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(WordflowTheme.primary)
-                                .controlSize(.small)
-                            }
-                            .padding(16)
-
-                            // Reset to default (only show if not already default)
-                            if !currentHotkey.useFnKey {
-                                Divider().opacity(0.35)
-                                
-                                Button {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        currentHotkey = HotkeyConfig.defaultConfig
-                                        HotkeyManager.saveConfig(currentHotkey)
-                                    }
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "arrow.counterclockwise")
-                                            .font(.system(size: 11))
-                                        Text(appLanguage == "EN" ? "Reset to default (Fn)" : "Standard wiederherstellen (Fn)")
-                                            .font(.system(size: 12))
-                                    }
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-                
-                SettingsCard(title: appLanguage == "EN" ? "Automation & Feedback" : "Automation & Feedback") {
-                    SettingsRow(title: appLanguage == "EN" ? "Auto Paste to Active App" : "Automatisch in aktive App einfügen", showDivider: true) {
-                        Toggle("", isOn: $autoPasteEnabled)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-                    
-                    SettingsRow(title: appLanguage == "EN" ? "Play Sound Effects" : "Soundeffekte abspielen", showDivider: false) {
-                        Toggle("", isOn: $soundsEnabled)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-                }
-            }
-            .padding(24)
-            .frame(maxWidth: 700)
-        }
-        .background(WordflowTheme.background)
+        Button(action: action) { HStack(alignment: .top, spacing: 16) { Image(systemName: isSelected ? "checkmark.circle.fill" : "circle").font(.system(size: 20)).foregroundStyle(isSelected ? WordflowTheme.primary : .secondary.opacity(0.3)).padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) { Text(profile.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.8)); Text(description(for: profile.name, lang: appLanguage)).font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+                Spacer() }.padding(16).background(isSelected ? WordflowTheme.primary.opacity(0.08) : Color.primary.opacity(0.02)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(isSelected ? WordflowTheme.primary.opacity(0.5) : Color.primary.opacity(0.05), lineWidth: isSelected ? 1.5 : 1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous)).contentShape(Rectangle()) }.buttonStyle(.plain)
     }
-
-    // MARK: - Hotkey Keycap Display
-    @ViewBuilder
-    private var hotkeyKeycapDisplay: some View {
-        if currentHotkey.useFnKey {
-            // Fn/Globe key visual
-            behaviorKeycap(systemImage: "globe", label: "fn", highlighted: true, width: 64, height: 48)
-        } else if currentHotkey.useModifierOnly {
-            // Modifier-only combo visual (e.g. ⇧+⌥)
-            HStack(spacing: 8) {
-                let flags = NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers)
-                let modifierList = modifierKeycaps(for: flags)
-                ForEach(Array(modifierList.enumerated()), id: \.offset) { index, item in
-                    if index > 0 {
-                        Text("+")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    behaviorKeycap(symbol: item.symbol, label: item.label, highlighted: true, width: 72, height: 48)
-                }
-            }
-        } else {
-            // Modifier + Key combo visual
-            HStack(spacing: 8) {
-                let flags = NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers)
-                if flags.contains(.control) {
-                    behaviorKeycap(symbol: "⌃", label: "control", width: 64, height: 42)
-                }
-                if flags.contains(.option) {
-                    behaviorKeycap(symbol: "⌥", label: "option", width: 64, height: 42)
-                }
-                if flags.contains(.shift) {
-                    behaviorKeycap(symbol: "⇧", label: "shift", width: 64, height: 42)
-                }
-                if flags.contains(.command) {
-                    behaviorKeycap(symbol: "⌘", label: "command", width: 72, height: 42)
-                }
-
-                if !flags.isEmpty {
-                    Text("+")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-
-                behaviorKeycap(symbol: nil, label: keyName(for: currentHotkey.keyCode), highlighted: true, width: nil, height: 48)
-            }
-        }
-    }
-
-    private struct ModifierKeycapInfo {
-        let symbol: String
-        let label: String
-    }
-
-    private func modifierKeycaps(for flags: NSEvent.ModifierFlags) -> [ModifierKeycapInfo] {
-        var result: [ModifierKeycapInfo] = []
-        if flags.contains(.shift) { result.append(ModifierKeycapInfo(symbol: "⇧", label: "shift")) }
-        if flags.contains(.control) { result.append(ModifierKeycapInfo(symbol: "⌃", label: "control")) }
-        if flags.contains(.option) { result.append(ModifierKeycapInfo(symbol: "⌥", label: "option")) }
-        if flags.contains(.command) { result.append(ModifierKeycapInfo(symbol: "⌘", label: "command")) }
-        return result
-    }
-
-    private func behaviorKeycap(symbol: String? = nil, systemImage: String? = nil, label: String, highlighted: Bool = false, width: CGFloat? = 68, height: CGFloat = 42) -> some View {
-        VStack(spacing: 2) {
-            if let systemImage {
-                Image(systemName: systemImage)
-                    .font(.system(size: 14, weight: .medium))
-            } else if let symbol, !symbol.isEmpty {
-                Text(symbol)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-            }
-            if !label.isEmpty {
-                Text(label)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
-            }
-        }
-        .padding(.horizontal, width == nil ? 20 : 0)
-        .frame(width: width)
-        .frame(minWidth: width == nil ? 56 : nil)
-        .frame(height: height)
-        .background(highlighted ? WordflowTheme.primary : WordflowTheme.background)
-        .foregroundColor(highlighted ? WordflowTheme.background : .primary)
-        .cornerRadius(7)
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(highlighted ? Color.clear : WordflowTheme.primary.opacity(0.12), lineWidth: 1)
-        )
-    }
-
-    private func keyName(for keyCode: UInt16) -> String {
-        switch keyCode {
-        case 49: return "space"
-        case 50: return "<"
-        case 36: return "return"
-        case 48: return "tab"
-        case 51: return "delete"
-        case 53: return "esc"
-        case 63: return "fn"
-        case 123: return "←"
-        case 124: return "→"
-        case 125: return "↓"
-        case 126: return "↑"
-        default:
-            // Try to resolve character from keyCode
-            let source = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
-            if let layoutData = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) {
-                let dataRef = unsafeBitCast(layoutData, to: CFData.self)
-                let keyboardLayout = unsafeBitCast(CFDataGetBytePtr(dataRef), to: UnsafePointer<UCKeyboardLayout>.self)
-                var deadKeyState: UInt32 = 0
-                var chars = [UniChar](repeating: 0, count: 4)
-                var length: Int = 0
-                let error = UCKeyTranslate(keyboardLayout, keyCode, UInt16(kUCKeyActionDown), 0, UInt32(LMGetKbdType()), UInt32(kUCKeyTranslateNoDeadKeysBit), &deadKeyState, 4, &length, &chars)
-                if error == noErr && length > 0 {
-                    return String(utf16CodeUnits: chars, count: length).uppercased()
-                }
-            }
-            return "Key \(keyCode)"
-        }
-    }
-
-    // MARK: - Preset Helpers
-    private func presetButton(label: String, isCurrentHotkey: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(isCurrentHotkey ? WordflowTheme.primary.opacity(0.15) : WordflowTheme.background)
-                .foregroundColor(isCurrentHotkey ? WordflowTheme.primary : .primary)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(isCurrentHotkey ? WordflowTheme.primary.opacity(0.4) : WordflowTheme.outline.opacity(0.3), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func applyPreset(_ config: HotkeyConfig) {
-        currentHotkey = config
-        HotkeyManager.saveConfig(config)
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            isRecordingHotkey = false
-        }
+    private func description(for name: String, lang: String) -> String {
+        switch name { case "Smart Casual": return lang == "EN" ? "Keeps your natural vibe, removes stutters, and fixes punctuation. Great for everyday messages." : "Behält deinen natürlichen Vibe bei, entfernt Stotterer und korrigiert die Zeichensetzung. Perfekt für alltägliche Nachrichten."; case "Smart Business": return lang == "EN" ? "Turns spoken thoughts into clear, logical text suitable for business contexts." : "Verwandelt gesprochene Gedanken in klaren, logischen Text. Ideal für das Business-Umfeld."; case "Professional": return lang == "EN" ? "Produces highly polished, formal text perfect for professional emails and documents." : "Erzeugt sehr formellen, feingeschliffenen Text. Perfekt für professionelle E-Mails und Dokumente."; default: return "" }
     }
 }
-
-
 // MARK: - 4. System Settings
 struct SystemSettingsView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
+    @AppStorage("transcriptionModel") private var transcriptionModel = "whisper-large-v3-turbo"
+    @AppStorage("textCorrectionModel") private var textCorrectionModel = "llama-3.1-8b-instant"
+    @AppStorage("logLevel") private var logLevel = "info"
+    @AppStorage("groqAPIKey") private var apiKey = ""
     @EnvironmentObject var appState: AppState
     @ObservedObject var updateChecker = UpdateChecker.shared
     @State private var hasAccessibility = AXIsProcessTrusted()
-    
-    // Checks permissions only on appear
-    
+    @State private var showingAPIKey = false
+    @State private var showingGuide = false
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                SettingsCard(title: "Permissions") {
-                    SettingsRow(title: appLanguage == "EN" ? "Accessibility Access" : "Bedienungshilfen-Zugriff", showDivider: false) {
-                        if hasAccessibility {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                Text(appLanguage == "EN" ? "Granted" : "Erteilt")
-                                    .foregroundColor(.secondary)
-                            }
-                        } else {
-                            Button(appLanguage == "EN" ? "Grant Permission" : "Erlauben") {
-                                let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-                                NSWorkspace.shared.open(url)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(WordflowTheme.primary)
-                        }
-                    }
-                    
-                    if !hasAccessibility {
-                        Text(appLanguage == "EN" ? "Required for auto-pasting text." : "Benötigt für das automatische Einfügen.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.orange)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 12)
-                    }
-                }
-                
-                SettingsCard(title: "Data & Debugging") {
-                    SettingsRow(title: "Logs", showDivider: true) {
-                        Button(appLanguage == "EN" ? "Reveal Log File" : "Log-Datei anzeigen") {
-                            if let url = LogManager.shared.getLogFileURL() {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }
-                    }
-                    
-                    SettingsRow(title: appLanguage == "EN" ? "History Database" : "Verlauf-Datenbank", showDivider: true) {
-                        Button(appLanguage == "EN" ? "Clear All History" : "Verlauf komplett löschen", role: .destructive) {
-                            appState.clipboardManager.clearHistory()
-                            appState.refreshHistory()
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(appLanguage == "EN" ? "Last Error" : "Letzter Fehler")
-                            .font(.system(size: 14, weight: .semibold, design: .serif))
-                            .foregroundColor(.primary)
-
-                        if let error = appState.lastError {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(alignment: .top) {
-                                    Image(systemName: icon(for: error.category))
-                                        .foregroundColor(color(for: error.category))
-                                        .font(.system(size: 16))
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        HStack {
-                                            Text(title(for: error.category))
-                                                .font(.system(size: 14, weight: .semibold, design: .serif))
-                                            Spacer()
-                                            Text(format(error.timestamp))
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        
-                                        Text(error.userMessage(for: appLanguage))
-                                            .font(.system(size: 13))
-                                            .foregroundColor(.primary)
-                                    }
-                                }
-
-                                HStack(spacing: 10) {
-                                    if let code = error.code {
-                                        Text(code)
-                                            .font(.system(size: 11, weight: .semibold, design: .serif).monospacedDigit())
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 3)
-                                            .background(WordflowTheme.primary.opacity(0.06))
-                                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                                    }
-
-                                    Text(stageText(error.stage))
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-
-                                DisclosureGroup(appLanguage == "EN" ? "Technical Details" : "Technische Details") {
-                                    Text(error.technicalMessage)
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                        .textSelection(.enabled)
-                                        .padding(.top, 4)
-                                }
-                                .font(.system(size: 13))
-
-                                HStack {
-                                    Button(appLanguage == "EN" ? "Copy Details" : "Details kopieren") {
-                                        copyErrorDetails(error)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(WordflowTheme.primary)
-                                    .controlSize(.small)
-
-                                    Button(appLanguage == "EN" ? "Clear" : "Zurücksetzen", role: .destructive) {
-                                        appState.clearLastError()
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .controlSize(.small)
-                                }
-                                .padding(.top, 4)
-                            }
-                            .padding(.top, 4)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            Text(appLanguage == "EN" ? "No recent errors." : "Keine aktuellen Fehler.")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                                .padding(.top, 4)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                
-                SettingsCard(title: "Software Updates") {
-                    SettingsRow(title: appLanguage == "EN" ? "Version" : "Version", showDivider: true) {
-                        Text({
-                            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-                            let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-                            return "\(version) (Build \(build))"
-                        }())
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    SettingsRow(title: appLanguage == "EN" ? "Updates" : "Updates", showDivider: false) {
-                        Button(appLanguage == "EN" ? "Check for Updates..." : "Nach Updates suchen...") {
-                            Task {
-                                // 1. Supabase zuerst — frischer Session Check
-                                await SupabaseService.shared.checkSession()
-                                let supabase = SupabaseService.shared
-                                if supabase.hasUpdateAvailable, let info = supabase.latestVersionInfo {
-                                    // Update gefunden via Supabase
-                                    let isDE = (appLanguage == "DE")
-                                    let alert = NSAlert()
-                                    alert.icon = NSApplication.shared.applicationIconImage
-                                    alert.messageText = isDE ? "Wordflow \(info.version) ist verfügbar" : "Wordflow \(info.version) is available"
-                                    let notes = info.notes ?? ""
-                                    let base = isDE
-                                        ? "Das Update ist kostenlos.\n\nKlicke auf \"Jetzt herunterladen\", um das DMG zu laden. Ersetze danach die App in deinem Programme-Ordner."
-                                        : "This update is free.\n\nClick \"Download now\" to get the DMG. Then replace the app in your Applications folder."
-                                    alert.informativeText = notes.isEmpty ? base : "\(base)\n\n\(notes)"
-                                    alert.alertStyle = .informational
-                                    alert.addButton(withTitle: isDE ? "Jetzt herunterladen" : "Download now")
-                                    alert.addButton(withTitle: isDE ? "Später" : "Later")
-                                    if alert.runModal() == .alertFirstButtonReturn {
-                                        if let url = URL(string: info.url) { NSWorkspace.shared.open(url) }
-                                    }
-                                } else {
-                                    // 2. Fallback: version.json prüfen
-                                    UpdateChecker.shared.checkForUpdates(userInitiated: true)
-                                }
-                            }
-                        }
-                        .disabled(UpdateChecker.shared.isChecking)
-                    }
-                }
+        Form {
+            Section { LabeledContent(appLanguage == "EN" ? "Groq API Key:" : "Groq API Key:") { HStack(spacing: 8) { if showingAPIKey { TextField("API Key", text: $apiKey).textFieldStyle(.roundedBorder) } else { SecureField("API Key", text: $apiKey).textFieldStyle(.roundedBorder) }
+                        Button { showingAPIKey.toggle() } label: { Image(systemName: showingAPIKey ? "eye.slash" : "eye") }.buttonStyle(.borderless).foregroundStyle(.secondary)
+                    }.frame(width: 320) }
+                Link(destination: URL(string: "https://console.groq.com")!) { Text(appLanguage == "EN" ? "Get free API Key →" : "Kostenlosen API Key holen →").font(.system(size: 12)).foregroundStyle(WordflowTheme.primary) }.padding(.leading, 2)
+            } header: { Text(appLanguage == "EN" ? "API Configuration" : "API Konfiguration") } footer: { Text(appLanguage == "EN" ? "We securely store your API keys locally on your Mac." : "API Keys werden nur lokal auf deinem Mac gespeichert.").font(.footnote).foregroundStyle(.secondary) }
+            
+            Section { HStack { Text(appLanguage == "EN" ? "Transcription" : "Transkription"); Spacer(); Picker("", selection: $transcriptionModel) { Text("Whisper Large V3 Turbo").tag("whisper-large-v3-turbo"); Text("Whisper Large V3").tag("whisper-large-v3") }.labelsHidden().pickerStyle(.menu).frame(width: 240) }
+                HStack { Text(appLanguage == "EN" ? "Text Correction" : "Textkorrektur"); Spacer(); Picker("", selection: $textCorrectionModel) { Text("Llama 3.1 (8B)").tag("llama-3.1-8b-instant"); Text("Llama 3.3 (70B)").tag("llama-3.3-70b-versatile"); Text("Llama 3.2 (3B)").tag("llama-3.2-3b-preview"); Text("Llama 4 Scout").tag("llama-4-scout"); Text("Mixtral (8x7b)").tag("mixtral-8x7b-32768") }.labelsHidden().pickerStyle(.menu).frame(width: 240) }
+            } header: { Text(appLanguage == "EN" ? "AI Models" : "KI-Modelle") } footer: { Text(appLanguage == "EN" ? "Choose models that balance speed and accuracy." : "Wähle Modelle, Geschwindigkeit und Genauigkeit im Gleichgewicht halten.").font(.footnote).foregroundStyle(.secondary) }
+            
+            Section(appLanguage == "EN" ? "Permissions" : "Berechtigungen") { HStack { Text(appLanguage == "EN" ? "Accessibility Access" : "Bedienungshilfen-Zugriff"); Spacer()
+                    if hasAccessibility { HStack { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text(appLanguage == "EN" ? "Granted" : "Erteilt").foregroundStyle(.secondary) }
+                    } else { Button(appLanguage == "EN" ? "Grant Permission" : "Erlauben") { let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!; NSWorkspace.shared.open(url) }.buttonStyle(.borderedProminent).tint(WordflowTheme.primary) } }
+                if !hasAccessibility { Text(appLanguage == "EN" ? "Required for auto-pasting text." : "Benötigt für das automatische Einfügen.").font(.footnote).foregroundStyle(.orange) } }
+            
+            Section(appLanguage == "EN" ? "Logging & Diagnostics" : "Logging & Diagnose") {
+                Button(appLanguage == "EN" ? "Reveal Log File" : "Log-Datei anzeigen") { if let url = LogManager.shared.getLogFileURL() { NSWorkspace.shared.open(url) } }
+                Button(appLanguage == "EN" ? "Clear History" : "Verlauf komplett löschen", role: .destructive) { appState.clipboardManager.clearHistory(); appState.refreshHistory() }
+                Button(appLanguage == "EN" ? "Check for Updates" : "Nach Updates suchen") { Task { await updateChecker.checkForUpdates(userInitiated: true) } }
+                HStack { Text(appLanguage == "EN" ? "Version" : "Version"); Spacer(); Text({ let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"; let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"; return "\(version) (Build \(build))" }()).foregroundStyle(.secondary) }
             }
-            .padding(24)
-            .frame(maxWidth: 700)
-        }
-        .background(WordflowTheme.background)
-        .onAppear {
-            hasAccessibility = AXIsProcessTrusted()
-        }
-    }
-
-    private func icon(for category: AppErrorCategory) -> String {
-        switch category {
-        case .keyMissing, .keyInvalid:
-            return "key.fill"
-        case .networkOffline:
-            return "wifi.exclamationmark"
-        case .timeout:
-            return "clock.badge.exclamationmark"
-        case .rateLimit:
-            return "gauge.with.dots.needle.67percent"
-        case .serviceUnavailable:
-            return "server.rack"
-        case .apiError:
-            return "exclamationmark.triangle.fill"
-        case .unknown:
-            return "questionmark.circle"
-        }
-    }
-
-    private func color(for category: AppErrorCategory) -> Color {
-        switch category {
-        case .keyMissing, .keyInvalid, .apiError, .unknown:
-            return .orange
-        case .networkOffline, .timeout, .rateLimit, .serviceUnavailable:
-            return .red
-        }
-    }
-
-    private func title(for category: AppErrorCategory) -> String {
-        if appLanguage == "EN" {
-            switch category {
-            case .keyMissing: return "API key missing"
-            case .keyInvalid: return "API key invalid"
-            case .networkOffline: return "Network offline"
-            case .timeout: return "Request timeout"
-            case .rateLimit: return "Rate limit reached"
-            case .serviceUnavailable: return "Service unavailable"
-            case .apiError: return "API error"
-            case .unknown: return "Unknown error"
-            }
-        } else {
-            switch category {
-            case .keyMissing: return "API Key fehlt"
-            case .keyInvalid: return "API Key ungültig"
-            case .networkOffline: return "Netzwerk offline"
-            case .timeout: return "Zeitüberschreitung"
-            case .rateLimit: return "Rate Limit erreicht"
-            case .serviceUnavailable: return "Service nicht verfügbar"
-            case .apiError: return "API-Fehler"
-            case .unknown: return "Unbekannter Fehler"
-            }
-        }
-    }
-
-    private func stageText(_ stage: AppErrorStage) -> String {
-        if appLanguage == "EN" {
-            switch stage {
-            case .transcription: return "Stage: Transcription"
-            case .correction: return "Stage: Correction"
-            case .unknown: return "Stage: Unknown"
-            }
-        } else {
-            switch stage {
-            case .transcription: return "Stufe: Transkription"
-            case .correction: return "Stufe: Korrektur"
-            case .unknown: return "Stufe: Unbekannt"
-            }
-        }
-    }
-
-    private func format(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-
-    private func copyErrorDetails(_ error: LastAppError) {
-        let details = """
-        category: \(error.category.rawValue)
-        stage: \(error.stage.rawValue)
-        code: \(error.code ?? "-")
-        timestamp: \(error.timestamp)
-        userMessageDE: \(error.userMessageDE)
-        userMessageEN: \(error.userMessageEN)
-        technicalMessage: \(error.technicalMessage)
-        """
-
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(details, forType: .string)
+        }.formStyle(.grouped).padding(16).sheet(isPresented: $showingGuide) { APIGuideSheet(appLanguage: appLanguage) }.onAppear { hasAccessibility = AXIsProcessTrusted() }
     }
 }
-
 // MARK: - Hotkey Recorder Components
 // MARK: - 5. Statistics View
-
 struct StatisticsView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
     @ObservedObject var manager = StatisticsManager.shared
     @State private var timeRange: StatisticsManager.TimeRange = .week
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                
-                // 1. Header & Picker in a Card
-                SettingsCard(title: appLanguage == "EN" ? "Time Range" : "Zeitraum") {
-                    SettingsRow(title: appLanguage == "EN" ? "Period" : "Zeitraum", showDivider: false) {
-                        Picker("", selection: $timeRange) {
-                            Text(appLanguage == "EN" ? "1 Week" : "1 Woche").tag(StatisticsManager.TimeRange.week)
-                            Text(appLanguage == "EN" ? "1 Month" : "1 Monat").tag(StatisticsManager.TimeRange.month)
-                            Text(appLanguage == "EN" ? "1 Year" : "1 Jahr").tag(StatisticsManager.TimeRange.year)
-                            Text(appLanguage == "EN" ? "All Time" : "Gesamt").tag(StatisticsManager.TimeRange.all)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
-                    }
+        Form {
+            Section(appLanguage == "EN" ? "Time Range" : "Zeitraum") {
+                HStack { Text(appLanguage == "EN" ? "Period:" : "Zeitraum:")
+                    Spacer()
+                    Picker("", selection: $timeRange) {
+                        Text(appLanguage == "EN" ? "1 Week" : "1 Woche").tag(StatisticsManager.TimeRange.week)
+                        Text(appLanguage == "EN" ? "1 Month" : "1 Monat").tag(StatisticsManager.TimeRange.month)
+                        Text(appLanguage == "EN" ? "1 Year" : "1 Jahr").tag(StatisticsManager.TimeRange.year)
+                        Text(appLanguage == "EN" ? "All Time" : "Gesamt").tag(StatisticsManager.TimeRange.all)
+                    }.labelsHidden().pickerStyle(.menu).frame(width: 140)
                 }
-                
-                // 2. KPI Grid
-                let stats = manager.getStats(for: timeRange)
-                
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                    StatCard(
-                        title: appLanguage == "EN" ? "Requests" : "Anfragen",
-                        value: "\(stats.requests)",
-                        icon: "waveform"
-                    )
-                    
-                    StatCard(
-                        title: appLanguage == "EN" ? "Words" : "Wörter",
-                        value: "\(stats.words)",
-                        icon: "text.quote"
-                    )
-                    
-                    StatCard(
-                        title: appLanguage == "EN" ? "Saved Time" : "Zeit gespart",
-                        value: formatTime(stats.savedSeconds),
-                        icon: "stopwatch"
-                    )
-                }
-                
-                // 3. Activity Chart (Compact)
-                SettingsCard(title: appLanguage == "EN" ? "Activity" : "Aktivität") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if #available(macOS 13.0, *) {
-                            Chart {
-                                ForEach(manager.getChartData(for: timeRange), id: \.date) { item in
-                                    BarMark(
-                                        x: .value("Date", dateLabel(for: item.date)),
-                                        y: .value("Requests", item.count)
-                                    )
-                                    .foregroundStyle(WordflowTheme.primary.opacity(0.8))
-                                    .cornerRadius(4)
-                                }
-                            }
-                            .frame(height: 180)
-                            .padding(.vertical, 16)
-                            .padding(.horizontal, 24)
-                        } else {
-                            Text("Charts require macOS 13+")
-                                .padding(16)
-                        }
-                    }
-                }
-                
+                .pickerStyle(.menu)
+                .frame(width: 260)
             }
-            .padding(24)
-            .frame(maxWidth: 700)
+            
+            // KPI Grid inside form sections
+            let stats = manager.getStats(for: timeRange)
+            
+            HStack(spacing: 12) {
+                StatCard(
+                    title: appLanguage == "EN" ? "Requests" : "Anfragen",
+                    value: "\(stats.requests)",
+                    icon: "waveform"
+                )
+                
+                StatCard(
+                    title: appLanguage == "EN" ? "Words" : "Wörter",
+                    value: "\(stats.words)",
+                    icon: "text.quote"
+                )
+                
+                StatCard(
+                    title: appLanguage == "EN" ? "Saved Time" : "Zeit gespart",
+                    value: formatTime(stats.savedSeconds),
+                    icon: "stopwatch"
+                )
+            }
+            .padding(.vertical, 8)
+            
+            // Activity Chart
+            Section(appLanguage == "EN" ? "Activity" : "Aktivität") {
+                if #available(macOS 13.0, *) {
+                    Chart {
+                        ForEach(manager.getChartData(for: timeRange), id: \.date) { item in
+                            BarMark(
+                                x: .value("Date", dateLabel(for: item.date)),
+                                y: .value("Requests", item.count)
+                            )
+                            .foregroundStyle(WordflowTheme.primary.gradient)
+                            .clipShape(.rect(cornerRadius: 3, style: .continuous))
+                        }
+                    }
+                    .chartXAxis {
+                        AxisMarks { _ in
+                            AxisValueLabel()
+                                .foregroundStyle(Color.secondary)
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading)
+                    }
+                    .frame(height: 200)
+                    .padding(16)
+                } else {
+                    Text("Charts require macOS 13+")
+                        .padding(16)
+                }
+            }
         }
-        .background(WordflowTheme.background)
-        .navigationTitle(appLanguage == "EN" ? "Statistics" : "Statistiken")
+        .formStyle(.grouped)
+        .padding(16)
     }
     
     // Helpers
@@ -2939,7 +2024,6 @@ struct StatisticsView: View {
     }
     
     func dateLabel(for dateString: String) -> String {
-        // Handle Month buckets "yyyy-MM"
         if dateString.count == 7 {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM"
@@ -2950,13 +2034,10 @@ struct StatisticsView: View {
             return dateString
         }
         
-        // Handle Days
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         guard let date = formatter.date(from: dateString) else { return "?" }
         
-        // If showing month view (many bars), simplify labels? Charts usually handles this automatically.
-        // For Week view, Show Day name.
         if timeRange == .week {
             formatter.dateFormat = "E"
         } else {
@@ -2970,19 +2051,18 @@ struct StatCard: View {
     let title: String
     let value: String
     let icon: String
-    
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 20))
                 .foregroundColor(.primary)
-                .frame(width: 40, height: 40)
-                .background(WordflowTheme.primary.opacity(0.04))
+                .frame(width: 36, height: 36)
+                .background(Color.primary.opacity(0.04))
                 .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                    .font(.system(size: 20, weight: .semibold, design: .serif))
                     .foregroundColor(.primary)
                 Text(title)
                     .font(.system(size: 13))
@@ -2991,9 +2071,39 @@ struct StatCard: View {
             Spacer()
         }
         .padding(16)
-        .background(WordflowTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(WordflowTheme.primary.opacity(0.12), lineWidth: 1))
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+    }
+}
+
+// MARK: - Account Settings
+struct AccountSettingsView: View {
+    @AppStorage("appLanguage") private var appLanguage = "EN"
+    @EnvironmentObject var appState: AppState
+    
+    var body: some View {
+        Form {
+            Section(appLanguage == "EN" ? "Account Details" : "Konto & Zugriff") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(appLanguage == "EN" ? "You are currently logged into Wordflow." : "Du bist in deinen Wordflow-Account eingeloggt.")
+                        .font(.system(size: 14))
+                        
+                    Button(role: .destructive) {
+                        SupabaseService.shared.logout()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text(appLanguage == "EN" ? "Log Out" : "Abmelden")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding(16)
     }
 }
 // MARK: - Hotkey Recorder Components
