@@ -67,11 +67,29 @@ Cmd + R
 ## Running Your Own Backend
 
 Wordflow uses [Supabase](https://supabase.com) for auth and license management.
-To run a fully self-hosted version you need:
 
-- A Supabase project with the following tables: `licenses`, `devices`, `app_versions`, `downloads`
-- Row Level Security enabled on all tables
-- The `check-session` Edge Function deployed
+### 1. Create the database schema
+
+Run the migration in your Supabase SQL Editor:
+
+```
+supabase/migrations/001_initial_schema.sql
+```
+
+This creates the `licenses`, `devices`, `app_versions`, and `downloads` tables with RLS policies.
+
+### 2. Deploy the Edge Function
+
+```bash
+supabase functions deploy check-session --project-ref YOUR_PROJECT_REF
+```
+
+The function source is at `supabase/functions/check-session/index.ts`.
+
+### 3. Configure auth
+
+In your Supabase dashboard under **Authentication → URL Configuration**:
+- Add `wordflow://activate` as a redirect URL
 
 See `Wordflow/Shared/SupabaseService.swift` for the full API surface.
 
