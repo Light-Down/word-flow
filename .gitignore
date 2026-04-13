@@ -64,3 +64,4 @@ website/
 # Internal files
 IconScripts/
 OAUTH_HANDOFF.md
+.build_number
