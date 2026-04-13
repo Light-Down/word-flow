@@ -22,7 +22,7 @@ Wordflow lets you dictate text anywhere on your Mac with a single hotkey. Your v
 
 ## Requirements
 
-- macOS 13 or later
+- macOS 26 or later
 - Xcode 15+
 - A free [Groq API Key](https://console.groq.com)
 
