@@ -61,5 +61,6 @@ skills-lock.json
 # Website (not part of the open source app)
 website/
 
-# Icon generation scripts (internal)
+# Internal files
 IconScripts/
+OAUTH_HANDOFF.md

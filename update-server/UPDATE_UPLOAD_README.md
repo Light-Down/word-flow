@@ -7,13 +7,13 @@ Your app currently checks these URLs:
 ## Option A (recommended): static JSON
 
 Upload these files:
-- `Deployment/update/version.json` -> `/update/version.json`
-- `Deployment/update.json` -> `/update.json`
+- `update-server/update/version.json` -> `/update/version.json`
+- `update-server/update.json` -> `/update.json`
 
 ## Option B: PHP endpoint
 
 If your host does not serve `.json` with JSON content-type reliably, upload:
-- `Deployment/version.php` -> `/update/version.php`
+- `update-server/version.php` -> `/update/version.php`
 
 Then point app endpoint to `/update/version.php`.
 
