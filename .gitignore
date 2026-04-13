@@ -61,6 +61,5 @@ skills-lock.json
 # Website (not part of the open source app)
 website/
 
-# Deployment scripts (internal)
-Deployment/
+# Icon generation scripts (internal)
 IconScripts/
