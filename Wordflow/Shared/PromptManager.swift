@@ -225,8 +225,9 @@ class PromptManager: ObservableObject {
             isDefault: true
         ),
         // ─────────────────────────────────────────
-        // MARK: 4. Prompt Engineer
+        // MARK: 4. Prompt Engineer (temporarily removed)
         // ─────────────────────────────────────────
+        /*
         PromptProfile(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!,
             name: "Prompt Engineer",
@@ -276,6 +277,7 @@ class PromptManager: ObservableObject {
             """,
             isDefault: true
         )
+        */
     ]
 
     // ════════════════════════════════════════════════════════════

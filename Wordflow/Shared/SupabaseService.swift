@@ -1,9 +1,36 @@
 import Foundation
 import AuthenticationServices
+import IOKit
 
 // ─────────────────────────────────────────────
 // MARK: - Response Models
 // ─────────────────────────────────────────────
+
+struct DeviceInfo: Codable {
+    let userId: UUID
+    let deviceId: String
+    let deviceName: String
+    let appVersion: String
+    let osVersion: String
+
+    enum CodingKeys: String, CodingKey {
+        case userId     = "user_id"
+        case deviceId   = "device_id"
+        case deviceName = "device_name"
+        case appVersion = "app_version"
+        case osVersion  = "os_version"
+    }
+}
+
+struct DeviceLimitResponse: Codable {
+    let id: UUID
+    let deviceId: String
+
+    enum CodingKeys: String, CodingKey {
+        case id       = "id"
+        case deviceId = "device_id"
+    }
+}
 
 struct SessionCheckResponse: Codable {
     let valid: Bool
@@ -15,6 +42,7 @@ struct SessionCheckResponse: Codable {
     let downloadUrl: String?
     let releaseNotes: String?
     let minRequired: String?
+    let maxDevices: Int?
     let reason: String?
 
     enum CodingKeys: String, CodingKey {
@@ -26,6 +54,7 @@ struct SessionCheckResponse: Codable {
         case downloadUrl      = "download_url"
         case releaseNotes     = "release_notes"
         case minRequired      = "min_required"
+        case maxDevices       = "max_devices"
     }
 }
 
@@ -54,14 +83,15 @@ class SupabaseService: ObservableObject {
     static let shared = SupabaseService()
 
     // MARK: Config
-    private let projectURL = "https://amieachokpogaspaplxr.supabase.co"
-    private let anonKey    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtaWVhY2hva3BvZ2FzcGFwbHhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MjkyNjgsImV4cCI6MjA4NTIwNTI2OH0.h7-dkHNAcJjwoGgnBQxUH8fIcNpzDT1q9nyEeWlDNq8"
+    private let projectURL = "https://" + (Bundle.main.infoDictionary?["SUPABASE_URL"] as? String ?? "")
+    private let anonKey    = Bundle.main.infoDictionary?["SUPABASE_ANON_KEY"] as? String ?? ""
 
     // MARK: State
     @Published var isLoggedIn: Bool = false
     @Published var sessionCheck: SessionCheckResponse? = nil
     @Published var isLoading: Bool = false
     @Published var authError: String? = nil
+    @Published var deviceLimitReached: Bool = false
 
     private let sessionKey = "wordflow_supabase_session"
     private let authContext = AuthPresentationContext()
@@ -109,18 +139,6 @@ class SupabaseService: ObservableObject {
     // MARK: - OAuth (Google / Apple)
     // ─────────────────────────────────────────────
 
-    func signInWithGoogle() {
-        guard let url = URL(string: "\(projectURL)/auth/v1/authorize?provider=google&redirect_to=wordflow://activate") else { return }
-        NSWorkspace.shared.open(url)
-        LogManager.shared.log("🌐 Google OAuth: Browser geöffnet")
-    }
-
-    func signInWithApple() {
-        guard let url = URL(string: "\(projectURL)/auth/v1/authorize?provider=apple&redirect_to=wordflow://activate") else { return }
-        NSWorkspace.shared.open(url)
-        LogManager.shared.log("🍎 Apple OAuth: Browser geöffnet")
-    }
-
     // ─────────────────────────────────────────────
     // MARK: - Deep Link verarbeiten (wordflow://activate)
     // ─────────────────────────────────────────────
@@ -154,8 +172,13 @@ class SupabaseService: ObservableObject {
         isLoggedIn = true
         LogManager.shared.log("✅ Supabase: Magic Link Login erfolgreich")
 
-        // Sofort Session checken
+        // Sofort Session checken, dann Gerät registrieren
         await checkSession()
+        let allowed = await registerDevice()
+        if !allowed {
+            logout()
+            authError = "Gerätelimit erreicht. Bitte ein anderes Gerät in den Einstellungen entfernen."
+        }
     }
 
     // ─────────────────────────────────────────────
@@ -225,6 +248,122 @@ class SupabaseService: ObservableObject {
             // Offline Grace Period: Session bleibt gültig
             LogManager.shared.log("⚠️ Session Check fehlgeschlagen (offline?): \(error.localizedDescription)")
         }
+    }
+
+    // ─────────────────────────────────────────────
+    // MARK: - Device Registration
+    // ─────────────────────────────────────────────
+
+    /// Eindeutige, stabile Geräte-ID (Hardware UUID)
+    private var currentDeviceId: String {
+        IORegistryEntryCreateCFProperty(
+            IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice")),
+            "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0
+        )?.takeRetainedValue() as? String ?? ProcessInfo.processInfo.globallyUniqueString
+    }
+
+    private var currentDeviceName: String {
+        Host.current().localizedName ?? "Mac"
+    }
+
+    /// Registriert dieses Gerät in Supabase und prüft das Gerätelimit.
+    /// Gibt `false` zurück wenn das Limit erreicht ist.
+    func registerDevice() async -> Bool {
+        guard let session = loadStoredSession() else { return false }
+
+        let tokenToUse: String
+        if session.isExpired {
+            guard let refreshed = await refreshSession(token: session.refreshToken) else { return false }
+            saveSession(refreshed)
+            tokenToUse = refreshed.accessToken
+        } else {
+            tokenToUse = session.accessToken
+        }
+
+        let deviceId   = currentDeviceId
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let osVersion  = ProcessInfo.processInfo.operatingSystemVersionString
+
+        // 1. Bereits registrierte Geräte dieses Users abrufen
+        var listReq = URLRequest(url: URL(string: "\(projectURL)/rest/v1/devices?select=id,device_id&order=created_at.asc")!)
+        listReq.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+        listReq.setValue(anonKey, forHTTPHeaderField: "apikey")
+        listReq.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        guard let (listData, _) = try? await URLSession.shared.data(for: listReq),
+              let existingDevices = try? JSONDecoder().decode([DeviceLimitResponse].self, from: listData)
+        else {
+            LogManager.shared.log("⚠️ Device-Liste konnte nicht geladen werden")
+            return true // Im Zweifelsfall erlauben (Offline-Toleranz)
+        }
+
+        // 2. Ist dieses Gerät bereits registriert?
+        if existingDevices.contains(where: { $0.deviceId == deviceId }) {
+            // Nur last_seen aktualisieren
+            let patchURL = URL(string: "\(projectURL)/rest/v1/devices?device_id=eq.\(deviceId)")!
+            var patchReq = URLRequest(url: patchURL)
+            patchReq.httpMethod = "PATCH"
+            patchReq.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+            patchReq.setValue(anonKey, forHTTPHeaderField: "apikey")
+            patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            patchReq.httpBody = try? JSONEncoder().encode(["app_version": appVersion, "os_version": osVersion])
+            _ = try? await URLSession.shared.data(for: patchReq)
+            LogManager.shared.log("✅ Device bekannt, last_seen aktualisiert")
+            deviceLimitReached = false
+            return true
+        }
+
+        // 3. Gerätelimit aus der Lizenz prüfen
+        let maxDevices = sessionCheck?.maxDevices ?? 3
+        if existingDevices.count >= maxDevices {
+            LogManager.shared.log("🚫 Gerätelimit erreicht (\(existingDevices.count)/\(maxDevices))")
+            deviceLimitReached = true
+            return false
+        }
+
+        // 4. Neues Gerät eintragen
+        guard let userId = extractUserId(from: tokenToUse) else { return true }
+
+        let device = DeviceInfo(
+            userId: userId,
+            deviceId: deviceId,
+            deviceName: currentDeviceName,
+            appVersion: appVersion,
+            osVersion: osVersion
+        )
+
+        var insertReq = URLRequest(url: URL(string: "\(projectURL)/rest/v1/devices")!)
+        insertReq.httpMethod = "POST"
+        insertReq.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+        insertReq.setValue(anonKey, forHTTPHeaderField: "apikey")
+        insertReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        insertReq.httpBody = try? JSONEncoder().encode(device)
+
+        guard let (_, insertResponse) = try? await URLSession.shared.data(for: insertReq),
+              let http = insertResponse as? HTTPURLResponse,
+              (200...299).contains(http.statusCode)
+        else {
+            LogManager.shared.log("⚠️ Device-Registrierung fehlgeschlagen")
+            return true
+        }
+
+        LogManager.shared.log("📱 Neues Gerät registriert: \(currentDeviceName)")
+        deviceLimitReached = false
+        return true
+    }
+
+    /// Extrahiert die User-ID aus dem JWT Access Token
+    private func extractUserId(from token: String) -> UUID? {
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        var base64 = String(parts[1])
+        let remainder = base64.count % 4
+        if remainder != 0 { base64 += String(repeating: "=", count: 4 - remainder) }
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let sub = json["sub"] as? String
+        else { return nil }
+        return UUID(uuidString: sub)
     }
 
     // ─────────────────────────────────────────────
@@ -444,7 +583,7 @@ class SupabaseService: ObservableObject {
                 session.start()
             }
             webAuthSession = nil
-            await handleDeepLink(url: callbackURL)
+            await handleDeepLink(url: callbackURL) // registerDevice() wird darin aufgerufen
         } catch {
             authError = "Google Sign-In fehlgeschlagen."
             LogManager.shared.log("❌ Google Sign-In: \(error.localizedDescription)")

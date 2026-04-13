@@ -179,6 +179,11 @@ struct GeneralSettingsView: View {
                     }
                 }.padding(.vertical, 4)
             } header: { Text(appLanguage == "EN" ? "Activation Shortcut" : "Aktivierungs-Shortcut") } footer: { Text(appLanguage == "EN" ? "Use this shortcut to start recording." : "Nutze diesen Shortcut, um die Aufnahme zu starten.").font(.footnote).foregroundColor(.secondary) }
+            Section(appLanguage == "EN" ? "History" : "Verlauf") {
+                Button(appLanguage == "EN" ? "Open Transcription History" : "Transkriptions-Verlauf öffnen") {
+                    WordflowApp.openHistoryWindow()
+                }
+            }
         }.formStyle(.grouped).padding(16)
     }
     @ViewBuilder private func presetButton(label: String, modifiers: NSEvent.ModifierFlags, includeFn: Bool = false) -> some View { let isMatch = currentHotkey.useModifierOnly && currentHotkey.useFnKey == includeFn && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).contains(modifiers.intersection([.shift, .option, .control, .command])) && NSEvent.ModifierFlags(rawValue: currentHotkey.modifiers).isSubset(of: modifiers.union([.function])); Button { let config = HotkeyConfig(modifiers: modifiers.rawValue, keyCode: 0, useFnKey: includeFn, useModifierOnly: true); currentHotkey = config; HotkeyManager.saveConfig(config) } label: { Text(label).font(.system(size: 13, weight: isMatch ? .bold : .medium)).foregroundColor(isMatch ? WordflowTheme.primary : .secondary).padding(.horizontal, 10).padding(.vertical, 6).background(isMatch ? WordflowTheme.primary.opacity(0.15) : Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(isMatch ? WordflowTheme.primary.opacity(0.3) : Color.clear, lineWidth: 1)) }.buttonStyle(.plain) }

@@ -30,6 +30,10 @@
     <string>WisprClone benötigt Zugriff auf das Mikrofon für die Sprachaufnahme und Transkription.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>SUPABASE_URL</key>
+    <string>$(SUPABASE_URL)</string>
+    <key>SUPABASE_ANON_KEY</key>
+    <string>$(SUPABASE_ANON_KEY)</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
