@@ -1,5 +1,7 @@
 # Wordflow
 
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Light-Down/word-flow?utm_source=oss&utm_medium=github&utm_campaign=Light-Down%2Fword-flow&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
+
 **Speech-to-Text for Mac — fast, private, AI-powered.**
 
 Wordflow lets you dictate text anywhere on your Mac with a single hotkey. Your voice is transcribed via Groq and optionally polished by an AI prompt profile — then pasted directly into whatever app you're using.
