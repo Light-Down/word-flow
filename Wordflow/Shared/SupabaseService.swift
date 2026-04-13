@@ -1,6 +1,7 @@
 import Foundation
 import AuthenticationServices
 import IOKit
+import Security
 
 // ─────────────────────────────────────────────
 // MARK: - Response Models
@@ -29,6 +30,26 @@ struct DeviceLimitResponse: Codable {
     enum CodingKeys: String, CodingKey {
         case id       = "id"
         case deviceId = "device_id"
+    }
+}
+
+struct DeviceEntry: Codable, Identifiable {
+    let id: UUID
+    let deviceId: String
+    let deviceName: String
+    let appVersion: String
+    let osVersion: String
+    let lastSeen: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case deviceId   = "device_id"
+        case deviceName = "device_name"
+        case appVersion = "app_version"
+        case osVersion  = "os_version"
+        case lastSeen   = "last_seen"
+        case createdAt  = "created_at"
     }
 }
 
@@ -92,16 +113,42 @@ class SupabaseService: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var authError: String? = nil
     @Published var deviceLimitReached: Bool = false
+    @Published var devices: [DeviceEntry] = []
+    @Published var isLoadingDevices: Bool = false
 
     private let sessionKey = "wordflow_supabase_session"
     private let authContext = AuthPresentationContext()
     private var webAuthSession: ASWebAuthenticationSession?
 
     private init() {
+        // Migration: Session aus UserDefaults in Keychain übertragen (einmalig)
+        migrateSessionToKeychainIfNeeded()
+
         // Gespeicherte Session laden beim Start
         if let saved = loadStoredSession(), !saved.isExpired {
             self.isLoggedIn = true
             LogManager.shared.log("✅ Supabase: Gespeicherte Session gefunden")
+        }
+    }
+
+    private func migrateSessionToKeychainIfNeeded() {
+        let migrationKey = "wordflow_keychain_migrated"
+        guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
+
+        guard let data = UserDefaults.standard.data(forKey: sessionKey),
+              let session = try? JSONDecoder().decode(SupabaseSession.self, from: data)
+        else {
+            // Keine Session in UserDefaults — Migration als erledigt markieren
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            return
+        }
+
+        if saveSession(session) {
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            UserDefaults.standard.removeObject(forKey: sessionKey)
+            LogManager.shared.log("🔑 Session in Keychain migriert")
+        } else {
+            LogManager.shared.log("⚠️ Keychain-Migration fehlgeschlagen — wird beim nächsten Start erneut versucht")
         }
     }
 
@@ -367,11 +414,86 @@ class SupabaseService: ObservableObject {
     }
 
     // ─────────────────────────────────────────────
+    // MARK: - Device List
+    // ─────────────────────────────────────────────
+
+    func fetchDevices() async {
+        isLoadingDevices = true
+        defer { isLoadingDevices = false }
+
+        guard let session = loadStoredSession() else { return }
+        let tokenToUse: String
+        if session.isExpired {
+            guard let refreshed = await refreshSession(token: session.refreshToken) else { return }
+            saveSession(refreshed)
+            tokenToUse = refreshed.accessToken
+        } else {
+            tokenToUse = session.accessToken
+        }
+
+        guard let url = URL(string: "\(projectURL)/rest/v1/devices?select=*&order=created_at.asc") else {
+            LogManager.shared.log("⚠️ fetchDevices: Ungültige URL")
+            return
+        }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            let list = try JSONDecoder().decode([DeviceEntry].self, from: data)
+            devices = list
+        } catch {
+            LogManager.shared.log("⚠️ fetchDevices fehlgeschlagen: \(error.localizedDescription)")
+        }
+    }
+
+    func removeDevice(id: UUID) async {
+        guard let session = loadStoredSession() else { return }
+        let tokenToUse: String
+        if session.isExpired {
+            guard let refreshed = await refreshSession(token: session.refreshToken) else { return }
+            saveSession(refreshed)
+            tokenToUse = refreshed.accessToken
+        } else {
+            tokenToUse = session.accessToken
+        }
+
+        guard let url = URL(string: "\(projectURL)/rest/v1/devices?id=eq.\(id.uuidString)") else {
+            LogManager.shared.log("⚠️ removeDevice: Ungültige URL")
+            return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: req)
+            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                await fetchDevices()
+                LogManager.shared.log("🗑️ Gerät entfernt: \(id)")
+            } else {
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                LogManager.shared.log("⚠️ removeDevice fehlgeschlagen (HTTP \(code))")
+            }
+        } catch {
+            LogManager.shared.log("⚠️ removeDevice fehlgeschlagen: \(error.localizedDescription)")
+        }
+    }
+
+    // ─────────────────────────────────────────────
     // MARK: - Logout
     // ─────────────────────────────────────────────
 
     func logout() {
-        UserDefaults.standard.removeObject(forKey: sessionKey)
+        let query: [String: Any] = [
+            kSecClass as String:        kSecClassGenericPassword,
+            kSecAttrService as String:  "com.markolenberg.Wordflow",
+            kSecAttrAccount as String:  sessionKey
+        ]
+        SecItemDelete(query as CFDictionary)
         isLoggedIn = false
         sessionCheck = nil
         LogManager.shared.log("👋 Supabase: Ausgeloggt")
@@ -449,16 +571,46 @@ class SupabaseService: ObservableObject {
         return SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: expiresAt)
     }
 
-    private func saveSession(_ session: SupabaseSession) {
-        if let data = try? JSONEncoder().encode(session) {
-            UserDefaults.standard.set(data, forKey: sessionKey)
+    @discardableResult
+    private func saveSession(_ session: SupabaseSession) -> Bool {
+        guard let data = try? JSONEncoder().encode(session) else { return false }
+
+        let query: [String: Any] = [
+            kSecClass as String:            kSecClassGenericPassword,
+            kSecAttrService as String:      "com.markolenberg.Wordflow",
+            kSecAttrAccount as String:      sessionKey,
+            kSecValueData as String:        data,
+            kSecAttrAccessible as String:   kSecAttrAccessibleAfterFirstUnlock
+        ]
+
+        // Erst löschen, dann neu schreiben (Update-Pattern für Keychain)
+        SecItemDelete(query as CFDictionary)
+        let status = SecItemAdd(query as CFDictionary, nil)
+
+        if status != errSecSuccess {
+            LogManager.shared.log("⚠️ Keychain: Session konnte nicht gespeichert werden (\(status))")
+            return false
         }
+        return true
     }
 
     private func loadStoredSession() -> SupabaseSession? {
-        guard let data = UserDefaults.standard.data(forKey: sessionKey),
+        let query: [String: Any] = [
+            kSecClass as String:            kSecClassGenericPassword,
+            kSecAttrService as String:      "com.markolenberg.Wordflow",
+            kSecAttrAccount as String:      sessionKey,
+            kSecReturnData as String:       true,
+            kSecMatchLimit as String:       kSecMatchLimitOne
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        guard status == errSecSuccess,
+              let data = result as? Data,
               let session = try? JSONDecoder().decode(SupabaseSession.self, from: data)
         else { return nil }
+
         return session
     }
 
@@ -575,6 +727,8 @@ class SupabaseService: ObservableObject {
                         continuation.resume(throwing: error)
                     } else if let url {
                         continuation.resume(returning: url)
+                    } else {
+                        continuation.resume(throwing: URLError(.cancelled))
                     }
                 }
                 session.prefersEphemeralWebBrowserSession = false

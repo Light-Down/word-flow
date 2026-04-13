@@ -4,6 +4,7 @@ import AVFoundation
 import Darwin
 import AppKit
 import Carbon
+import IOKit
 
 struct SettingsWindowChromeConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
@@ -2147,14 +2148,24 @@ struct StatCard: View {
 struct AccountSettingsView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
     @EnvironmentObject var appState: AppState
-    
+    @ObservedObject private var supabase = SupabaseService.shared
+
+    private var currentDeviceId: String {
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
+        defer { IOObjectRelease(service) }
+        return IORegistryEntryCreateCFProperty(service, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? String ?? ""
+    }
+
     var body: some View {
         Form {
-            Section(appLanguage == "EN" ? "Account Details" : "Konto & Zugriff") {
+            // ── Account ──
+            Section(appLanguage == "EN" ? "Account" : "Konto") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(appLanguage == "EN" ? "You are currently logged into Wordflow." : "Du bist in deinen Wordflow-Account eingeloggt.")
-                        .font(.system(size: 14))
-                        
+                    Text(appLanguage == "EN" ? "You are logged into Wordflow." : "Du bist in deinen Wordflow-Account eingeloggt.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+
                     Button(role: .destructive) {
                         SupabaseService.shared.logout()
                     } label: {
@@ -2166,10 +2177,76 @@ struct AccountSettingsView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
                 }
+                .padding(.vertical, 4)
+            }
+
+            // ── Geräte ──
+            Section {
+                if supabase.isLoadingDevices {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                } else if supabase.devices.isEmpty {
+                    Text(appLanguage == "EN" ? "No devices registered." : "Keine Geräte registriert.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                } else {
+                    ForEach(supabase.devices) { device in
+                        HStack(spacing: 10) {
+                            Image(systemName: device.deviceId == currentDeviceId ? "laptopcomputer" : "desktopcomputer")
+                                .foregroundStyle(device.deviceId == currentDeviceId ? .blue : .secondary)
+                                .frame(width: 20)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(device.deviceName)
+                                        .font(.system(size: 13, weight: .medium))
+                                    if device.deviceId == currentDeviceId {
+                                        Text(appLanguage == "EN" ? "This device" : "Dieses Gerät")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.blue)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(.blue.opacity(0.1))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                Text("macOS \(device.osVersion) · v\(device.appVersion)")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            if device.deviceId != currentDeviceId {
+                                Button {
+                                    Task { await SupabaseService.shared.removeDevice(id: device.id) }
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .foregroundStyle(.red.opacity(0.8))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            } header: {
+                let max = supabase.sessionCheck?.maxDevices ?? 3
+                let count = supabase.devices.count
+                Text(appLanguage == "EN" ? "Devices (\(count)/\(max))" : "Geräte (\(count)/\(max))")
             }
         }
         .formStyle(.grouped)
         .padding(16)
+        .task {
+            await SupabaseService.shared.fetchDevices()
+        }
     }
 }
 // MARK: - Hotkey Recorder Components
