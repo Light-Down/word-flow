@@ -64,6 +64,11 @@ enum WordflowTheme {
         light: NSColor(calibratedWhite: 0, alpha: 0.05),
         dark: NSColor(calibratedWhite: 0, alpha: 0.28)
     )
+
+    // Profil-Farben für Pill-Glow
+    static let profileSmartCasual = Color.white
+    static let profileEmail = Color(red: 59.0 / 255.0, green: 130.0 / 255.0, blue: 246.0 / 255.0)  // Blau
+    static let profileTech = Color(red: 139.0 / 255.0, green: 92.0 / 255.0, blue: 246.0 / 255.0)   // Lila
 }
 
 extension View {

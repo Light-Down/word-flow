@@ -11,6 +11,7 @@ class AppState: ObservableObject {
     @Published var isProcessing = false
     @Published var transcriptionHistory: [TranscriptionEntry] = []
     @Published var lastError: LastAppError?
+    @Published var activeProfileColor: Color = WordflowTheme.profileSmartCasual
     
     let audioRecorder = AudioRecorder()
     let transcriptionService = TranscriptionService()

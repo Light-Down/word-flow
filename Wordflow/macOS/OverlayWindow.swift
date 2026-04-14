@@ -160,7 +160,7 @@ struct PillView: View {
                 } label: {
                     Image(systemName: "stop.circle.fill")
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(WordflowTheme.primary.opacity(0.96))
+                        .foregroundStyle(Color.white.opacity(0.9))
                         .font(.system(size: 24))
                         .frame(width: 32, height: 44)
                         .contentShape(Rectangle())
@@ -183,7 +183,8 @@ struct PillView: View {
                 if appState.isRecording || appState.isProcessing {
                     LiquidGlowContainer(
                         audioRecorder: appState.audioRecorder,
-                        isActive: true
+                        isActive: true,
+                        color: appState.activeProfileColor
                     )
                     .opacity(0.8)
                 }
@@ -209,7 +210,7 @@ struct PillView: View {
                 // Locked Indicator
                 if controller.isLocked {
                     Capsule()
-                        .strokeBorder(WordflowTheme.primary.opacity(0.66), lineWidth: 1.2)
+                        .strokeBorder(appState.activeProfileColor.opacity(0.66), lineWidth: 1.2)
                 }
             }
         )
@@ -254,11 +255,13 @@ struct WaveformContainer: View {
 struct LiquidGlowContainer: View {
     @ObservedObject var audioRecorder: AudioRecorder
     var isActive: Bool
-    
+    var color: Color = WordflowTheme.profileSmartCasual
+
     var body: some View {
         LiquidGlowView(
             isActive: isActive,
-            audioLevel: Double(audioRecorder.audioLevel)
+            audioLevel: Double(audioRecorder.audioLevel),
+            color: color
         )
     }
 }
@@ -266,19 +269,20 @@ struct LiquidGlowContainer: View {
 struct LiquidGlowView: View {
     var isActive: Bool
     var audioLevel: Double
-    
+    var color: Color = WordflowTheme.profileSmartCasual
+
     var body: some View {
         let level = isActive ? max(0.1, audioLevel * 2.5) : 0.05
-        
+
         GeometryReader { geo in
             ZStack {
-                // A single, beautifully smooth core gradient 
+                // A single, beautifully smooth core gradient
                 Circle()
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
-                                WordflowTheme.primary.opacity(0.7),
-                                WordflowTheme.primary.opacity(0)
+                                color.opacity(0.7),
+                                color.opacity(0)
                             ]),
                             center: .center,
                             startRadius: 0,

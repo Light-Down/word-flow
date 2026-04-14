@@ -414,6 +414,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         )
+        hotkeyManager?.onProfileChange = { mode in
+            DispatchQueue.main.async {
+                let pm = PromptManager.shared
+                switch mode {
+                case .smartCasual:
+                    pm.selectProfile(id: PromptManager.smartCasualId)
+                    AppState.shared?.activeProfileColor = WordflowTheme.profileSmartCasual
+                case .email:
+                    pm.selectProfile(id: PromptManager.emailId)
+                    AppState.shared?.activeProfileColor = WordflowTheme.profileEmail
+                case .tech:
+                    pm.selectProfile(id: PromptManager.techId)
+                    AppState.shared?.activeProfileColor = WordflowTheme.profileTech
+                }
+            }
+        }
         hotkeyManager?.start()
     }
     
@@ -441,6 +457,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return 
         }
         
+        // Profil auf Smart Casual zurücksetzen + Farbe zurücksetzen
+        PromptManager.shared.selectProfile(id: PromptManager.smartCasualId)
+        AppState.shared?.activeProfileColor = WordflowTheme.profileSmartCasual
+
         // Play start sound & haptics
         SoundManager.shared.playStartRecording()
         SoundManager.shared.playHaptic(type: .start)
@@ -487,6 +507,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         SoundManager.shared.playHaptic(type: .error)
         
         // Reset all states
+        appState.activeProfileColor = WordflowTheme.profileSmartCasual
+        PromptManager.shared.selectProfile(id: PromptManager.smartCasualId)
         appState.isProcessing = false
         appState.audioRecorder.stopRecording()
         
@@ -642,7 +664,6 @@ struct MenuBarView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
     @AppStorage("autoPasteEnabled") private var autoPasteEnabled = true
     @AppStorage("soundsEnabled") private var soundsEnabled = true
-    @ObservedObject var promptManager = PromptManager.shared
     @ObservedObject private var supabase = SupabaseService.shared
     @ObservedObject private var updateChecker = UpdateChecker.shared
 
@@ -702,22 +723,6 @@ struct MenuBarView: View {
             }
             .padding(.top, 8)
             .padding(.horizontal, 4)
-
-            // ── Profile Section ───────────────────────────────────
-            VStack(alignment: .leading, spacing: 6) {
-                menuBarSectionTitle(appLanguage == "EN" ? "Prompt Profile" : "Prompt Profil")
-                menuBarCard {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(promptManager.profiles) { profile in
-                                PromptButton(profile: profile)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                    }
-                }
-            }
 
             // ── App Settings ───────────────────────────────────
             menuBarCard {
@@ -862,44 +867,3 @@ struct PillToggleRow: View {
     }
 }
 
-// MARK: - Prompt Button Component
-struct PromptButton: View {
-    let profile: PromptProfile
-    @ObservedObject var promptManager = PromptManager.shared
-    @State private var isHovered = false
-    
-    var isSelected: Bool {
-        promptManager.selectedProfileId == profile.id
-    }
-    
-    var body: some View {
-        Button {
-            promptManager.selectProfile(id: profile.id)
-        } label: {
-            HStack(spacing: 4) {
-                Text(profile.name)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                }
-            }
-            .foregroundColor(isSelected ? .white : WordflowTheme.onSurface)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .frame(minWidth: 90)
-            .background(
-                Capsule()
-                    .fill(isSelected ? WordflowTheme.primary : (isHovered ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04)))
-            )
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
-        }
-    }
-}

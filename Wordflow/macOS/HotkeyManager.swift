@@ -129,6 +129,11 @@ struct HotkeyConfig: Codable, Equatable {
     }
 }
 
+// MARK: - Profile Mode
+enum ProfileMode {
+    case smartCasual, email, tech
+}
+
 class HotkeyManager {
     static let configDidChangeNotification = Notification.Name("HotkeyManager.configDidChange")
 
@@ -138,11 +143,12 @@ class HotkeyManager {
     private var localFlagMonitor: Any?
     private var configObserver: NSObjectProtocol?
     private var eventTap: CFMachPort?
-    
+
     private let onHotkeyChange: (Bool) -> Void
     private let onLockChange: ((Bool) -> Void)?
     private let onExpandChange: ((Bool) -> Void)?
     private let onCancel: (() -> Void)?
+    var onProfileChange: ((ProfileMode) -> Void)?
     private var currentModifiers: NSEvent.ModifierFlags = []
     private var isRecording = false
     var isLocked = false
@@ -218,8 +224,7 @@ class HotkeyManager {
             return event
         }
 
-        // CGEventTap: intercept and suppress Space keydown when used as lock trigger
-        startEventTap()
+        // CGEventTap für Space-Lock wird nicht mehr benötigt (Auto-Lock beim Fn-Press)
     }
 
     func stop() {
@@ -230,7 +235,6 @@ class HotkeyManager {
         localFlagMonitor = nil
         globalKeyMonitor = nil
         localKeyMonitor = nil
-        stopEventTap()
     }
 
     private func startEventTap() {
@@ -292,43 +296,35 @@ class HotkeyManager {
     
     private func handleFlagsChanged(_ event: NSEvent) {
         let newModifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let hadFunction = currentModifiers.contains(.function)
-        let hasFunction = newModifiers.contains(.function)
-        let hadCommand = currentModifiers.contains(.command)
-        let hasCommand = newModifiers.contains(.command)
-        
+        let oldModifiers = currentModifiers  // Snapshot vor dem Update
         currentModifiers = newModifiers
+
+        let hadFunction = oldModifiers.contains(.function)
+        let hasFunction = newModifiers.contains(.function)
+        let hadCommand  = oldModifiers.contains(.command)
+        let hasCommand  = newModifiers.contains(.command)
+        let hadControl  = oldModifiers.contains(.control)
+        let hasControl  = newModifiers.contains(.control)
         
         // ============================================================
-        // MODE 1: Fn (Globe) Key
+        // MODE 1: Fn (Globe) Key — Toggle-Modus mit Auto-Lock
         // ============================================================
         if config.useFnKey {
-            // Command pressed while recording → Expand
-            if isRecording && hasCommand && !hadCommand {
-                onExpandChange?(true)
-            } else if isRecording && !hasCommand && hadCommand {
-                onExpandChange?(false)
-            }
-            
-            // Fn + Command → Toggle Lock
-            if hasFunction && hasCommand && !hadCommand && isRecording && !isLocked && fnKeyPressed {
-                print("🔒 Aufnahme GELOCKT (Fn + ⌘)")
-                isLocked = true
-                onLockChange?(true)
-                onExpandChange?(true)
-                return
-            }
-            
             // Fn key pressed
             if hasFunction && !hadFunction {
                 if !isRecording {
-                    print("🔴 Aufnahme START (Fn)")
+                    // Erster Druck: Aufnahme starten + sofort locken
+                    print("🔴 Aufnahme START + AUTO-LOCK (Fn)")
                     isRecording = true
-                    isLocked = false
+                    isLocked = true
                     fnKeyPressed = true
                     onHotkeyChange(true)
+                    onLockChange?(true)
+                    // Profil auf Smart Casual zurücksetzen
+                    onProfileChange?(.smartCasual)
                 } else if isLocked {
-                    print("⏹️ Aufnahme STOP (Fn - war gelockt)")
+                    // Zweiter Druck: Aufnahme stoppen
+                    print("⏹️ Aufnahme STOP (Fn - zweiter Druck)")
                     isLocked = false
                     onLockChange?(false)
                     isRecording = false
@@ -336,16 +332,19 @@ class HotkeyManager {
                     onHotkeyChange(false)
                 }
             }
-            // Fn key released
-            else if !hasFunction && hadFunction && isRecording && fnKeyPressed {
-                if isLocked {
-                    print("🔒 Aufnahme läuft weiter (gelockt)")
-                    fnKeyPressed = false
-                } else {
-                    print("⏹️ Aufnahme STOP (Fn)")
-                    isRecording = false
-                    fnKeyPressed = false
-                    onHotkeyChange(false)
+            // Fn key released → Aufnahme bleibt (Lock ist aktiv)
+            else if !hasFunction && hadFunction && fnKeyPressed {
+                print("🔒 Fn losgelassen – Aufnahme läuft weiter (gelockt)")
+                fnKeyPressed = false
+            }
+
+            // Modifier-Profil-Auswahl während Fn gehalten
+            // Nur beim DRÜCKEN des Modifiers feuern (nicht beim Loslassen), damit das Profil hält
+            if isRecording && fnKeyPressed {
+                if hasControl && !hadControl {
+                    onProfileChange?(.email)
+                } else if hasCommand && !hadCommand {
+                    onProfileChange?(.tech)
                 }
             }
             return

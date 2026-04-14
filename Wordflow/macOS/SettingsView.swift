@@ -1881,22 +1881,112 @@ struct GuideStepView: View {
 // MARK: - 3. Profile Settings
 struct ProfileSettingsView: View {
     @AppStorage("appLanguage") private var appLanguage = "EN"
-    @ObservedObject var promptManager = PromptManager.shared
+    @AppStorage("emailSignatureName") private var emailSignatureName = ""
+
     var body: some View {
         Form {
-            Section { VStack(spacing: 12) { ForEach(promptManager.profiles) { profile in ProfileCardView(profile: profile, isSelected: promptManager.selectedProfileId == profile.id, appLanguage: appLanguage) { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { promptManager.selectProfile(id: profile.id) } } } }.padding(.vertical, 4) } header: { Text(appLanguage == "EN" ? "AI Text Refinement" : "KI-Textveredelung") } footer: { Text(appLanguage == "EN" ? "Choose how the AI should rewrite your dictations. More profiles coming soon." : "Wähle, wie die KI deine Diktate umschreiben soll. Weitere Profile folgen in Kürze.").font(.footnote).foregroundStyle(.secondary).padding(.top, 4) }
-        }.formStyle(.grouped).padding(16)
+            Section {
+                VStack(spacing: 12) {
+                    ProfileShortcutRow(
+                        shortcut: "Fn",
+                        color: .white,
+                        title: "Smart Casual",
+                        description: appLanguage == "EN"
+                            ? "Keeps your natural vibe, removes stutters, and fixes punctuation."
+                            : "Behält deinen natürlichen Vibe, entfernt Stotterer und korrigiert Zeichensetzung.",
+                        showDivider: true
+                    )
+                    ProfileShortcutRow(
+                        shortcut: "Fn + ⌃",
+                        color: Color(red: 59/255, green: 130/255, blue: 246/255),
+                        title: "Email",
+                        description: appLanguage == "EN"
+                            ? "Formats your dictation as a ready-to-send email. No subject line, just content."
+                            : "Formatiert das Diktat als versandbereite E-Mail. Kein Betreff, direkt der Inhalt.",
+                        showDivider: true,
+                        signatureBinding: $emailSignatureName,
+                        signaturePlaceholder: appLanguage == "EN" ? "Your name (e.g. Mark)" : "Dein Name (z.B. Mark)"
+                    )
+                    ProfileShortcutRow(
+                        shortcut: "Fn + ⌘",
+                        color: Color(red: 139/255, green: 92/255, blue: 246/255),
+                        title: "Tech",
+                        description: appLanguage == "EN"
+                            ? "Recognizes file names, paths and terminal commands and formats them correctly."
+                            : "Erkennt Dateinamen, Pfade und Terminal-Befehle und formatiert sie korrekt.",
+                        showDivider: false
+                    )
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text(appLanguage == "EN" ? "Recording Profiles" : "Aufnahme-Profile")
+            } footer: {
+                Text(appLanguage == "EN"
+                    ? "Hold Fn and press a modifier key before releasing to activate a profile. The recording pill changes color to show the active profile."
+                    : "Fn halten und vor dem Loslassen einen Modifier drücken, um ein Profil zu aktivieren. Die Aufnahme-Pille ändert ihre Farbe entsprechend.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+            }
+
+        }
+        .formStyle(.grouped)
+        .padding(16)
     }
 }
-struct ProfileCardView: View {
-    let profile: PromptProfile; let isSelected: Bool; let appLanguage: String; let action: () -> Void
+
+struct ProfileShortcutRow: View {
+    let shortcut: String
+    let color: Color
+    let title: String
+    let description: String
+    let showDivider: Bool
+    var signatureBinding: Binding<String>? = nil
+    var signaturePlaceholder: String = ""
+
     var body: some View {
-        Button(action: action) { HStack(alignment: .top, spacing: 16) { Image(systemName: isSelected ? "checkmark.circle.fill" : "circle").font(.system(size: 20)).foregroundStyle(isSelected ? WordflowTheme.primary : .secondary.opacity(0.3)).padding(.top, 2)
-                VStack(alignment: .leading, spacing: 4) { Text(profile.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.8)); Text(description(for: profile.name, lang: appLanguage)).font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-                Spacer() }.padding(16).background(isSelected ? WordflowTheme.primary.opacity(0.08) : Color.primary.opacity(0.02)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(isSelected ? WordflowTheme.primary.opacity(0.5) : Color.primary.opacity(0.05), lineWidth: isSelected ? 1.5 : 1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous)).contentShape(Rectangle()) }.buttonStyle(.plain)
-    }
-    private func description(for name: String, lang: String) -> String {
-        switch name { case "Smart Casual": return lang == "EN" ? "Keeps your natural vibe, removes stutters, and fixes punctuation. Great for everyday messages." : "Behält deinen natürlichen Vibe bei, entfernt Stotterer und korrigiert die Zeichensetzung. Perfekt für alltägliche Nachrichten."; case "Smart Business": return lang == "EN" ? "Turns spoken thoughts into clear, logical text suitable for business contexts." : "Verwandelt gesprochene Gedanken in klaren, logischen Text. Ideal für das Business-Umfeld."; case "Professional": return lang == "EN" ? "Produces highly polished, formal text perfect for professional emails and documents." : "Erzeugt sehr formellen, feingeschliffenen Text. Perfekt für professionelle E-Mails und Dokumente."; case "Prompt Engineer": return lang == "EN" ? "Turns your raw brain dump into a precise, effective prompt for AI chat tools like Claude or ChatGPT." : "Verwandelt deinen rohen Gedanken-Dump in einen präzisen, effektiven Prompt für KI-Chat-Tools wie Claude oder ChatGPT."; default: return "" }
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 14) {
+                // Farbiger Dot als Profil-Indikator
+                Circle()
+                    .fill(color)
+                    .frame(width: 10, height: 10)
+                    .shadow(color: color.opacity(0.6), radius: 4)
+                    .padding(.top, 4)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(title)
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(shortcut)
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.primary.opacity(0.06))
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    Text(description)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    // Optionales Signatur-Eingabefeld (nur für Email-Profil)
+                    if let binding = signatureBinding {
+                        TextField(signaturePlaceholder, text: binding)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 13))
+                            .padding(.top, 6)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.vertical, 10)
+
+            if showDivider {
+                Divider().padding(.leading, 24)
+            }
+        }
     }
 }
 // MARK: - 4. System Settings
